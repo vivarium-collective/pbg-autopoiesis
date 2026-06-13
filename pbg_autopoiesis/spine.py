@@ -14,9 +14,21 @@ meter as the measure source.
 from __future__ import annotations
 
 import shutil
+import time as _time
 from pathlib import Path
 
 from ruamel.yaml import YAML
+
+# Provenance — reuse the existing pbg-superpowers machinery (do NOT reimplement).
+# Both modules are import-available in the v2ecoli venv the autopoiesis workspace
+# uses; if a future venv lacks them, the guarded import degrades the spine to its
+# prior (unstamped) behaviour rather than crashing.
+try:
+    from pbg_superpowers import generation as _generation
+    from pbg_superpowers import viz_freshness as _viz_freshness
+except Exception:  # pragma: no cover - provenance is best-effort
+    _generation = None
+    _viz_freshness = None
 
 from .loop import build_loop, run_trajectory, closure_of_loop
 from . import viz, spatial, chemotaxis, growth
@@ -32,6 +44,52 @@ _yaml = YAML()
 _yaml.preserve_quotes = True
 _yaml.allow_unicode = True
 _yaml.width = 100
+
+
+# --- provenance: coordinated generation + chart freshness stamps ----------
+
+def start_spine_generation():
+    """Open ONE coordinated result-generation for this spine run and return its id.
+
+    Reuses ``pbg_superpowers.generation.start_generation`` — every run record and
+    every rendered chart written by this spine run is stamped with the returned
+    ``generation_id`` so the dashboard/report can flag any panel left over from an
+    older generation. ``start_generation`` records the workspace's git sha via
+    ``git rev-parse`` (which succeeds and records the sha even on a DIRTY tree), so
+    a dirty checkout degrades gracefully — the sha is still captured. Returns
+    ``None`` when the provenance module isn't importable (spine still runs).
+    """
+    if _generation is None:
+        return None
+    gen = _generation.start_generation(
+        WS,
+        param_set={
+            "supply_rate": 2.0,
+            "sweep_rates": [1.0, 1.5, 2.0, 2.5, 3.0],
+            "seeds": list(range(12)),
+        },
+        label="autopoiesis spine",
+    )
+    return gen.generation_id
+
+
+def _stamp_charts(charts_dir, *, generation_id, source_run_id, rendered_at):
+    """Write a viz_freshness sidecar next to every PNG in ``charts_dir``.
+
+    Reuses ``pbg_superpowers.viz_freshness.stamp_meta`` (exact signature) so each
+    chart records which run + generation produced it. ``rendered_at`` is a float
+    epoch passed from the caller's context (no Date.now-style call inside). No-op
+    when the provenance module isn't importable."""
+    if _viz_freshness is None:
+        return
+    for png in sorted(Path(charts_dir).glob("*.png")):
+        _viz_freshness.stamp_meta(
+            png,
+            source_run_id=source_run_id,
+            generation_id=generation_id,
+            rendered_at=rendered_at,
+            command="spine",
+        )
 
 
 # --- the measures the meter produces --------------------------------------
@@ -195,12 +253,17 @@ def _findings(context, outcomes):
     ]
 
 
-def _copy_figures():
+def _copy_figures(generation_id=None, source_run_id="autopoiesis-meter", rendered_at=None):
     viz.main()
     charts = STUDY_DIR / "charts"
     charts.mkdir(exist_ok=True)
+    rendered_at = _time.time() if rendered_at is None else rendered_at
     for png in sorted((WS / "figures").glob("*.png")):
+        # shutil.copy still PLACES the PNG in charts/; stamp_meta then writes the
+        # provenance sidecar (it records metadata, it does not copy the file).
         shutil.copy(png, charts / png.name)
+    _stamp_charts(charts, generation_id=generation_id,
+                  source_run_id=source_run_id, rendered_at=rendered_at)
     return charts
 
 
@@ -227,16 +290,21 @@ def _spatial_findings(context, outcomes):
     ]
 
 
-def _apply_meter(study_path, measures, context, findings_fn, run_name, composite):
+def _apply_meter(study_path, measures, context, findings_fn, run_name, composite,
+                 generation_id=None, seed=0):
     """Generic: apply the study's authored bands to the computed measures, write the
-    run outcomes + gate_evaluator + findings. The schema framework driving the spine."""
+    run outcomes + gate_evaluator + findings. The schema framework driving the spine.
+
+    ``generation_id`` (from :func:`start_spine_generation`) and ``seed`` stamp the
+    run record so each run is tied to one coordinated result-generation."""
     study = _yaml.load(study_path.read_text(encoding="utf-8"))
     outcomes = evaluate(study, measures)
     verdict = gate_evaluator(outcomes, study.get("gate_status"))
     import datetime as _dt
     run_rec = {"name": run_name, "status": "completed", "composite": composite,
                "outcomes": {t: dict(o) for t, o in outcomes.items()},
-               "started_at": _dt.datetime.now(_dt.timezone.utc).isoformat()}
+               "started_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+               "generation_id": generation_id, "seed": seed}
     # Readily-available run metadata so the Runs tab columns fill in.
     if isinstance(context, dict):
         if context.get("n_steps") is not None:
@@ -267,21 +335,32 @@ def _report(slug, verdict, outcomes):
         print(f"  {o['result']:4s}  {t:30s} observed={o['observed']}")
 
 
-def sync():
+def sync(generation_id=None):
     """Study 1 — the membrane/metabolism loop (operational closure + precariousness)."""
+    if generation_id is None:
+        generation_id = start_spine_generation()
     measures, context = compute_measures()
+    rendered_at = _time.time()
     v = _apply_meter(STUDY_YAML, measures, context, _findings,
-                     "autopoiesis-meter", "membrane-metabolism-loop")
-    _copy_figures()
+                     "autopoiesis-meter", "membrane-metabolism-loop",
+                     generation_id=generation_id)
+    _copy_figures(generation_id=generation_id, source_run_id="autopoiesis-meter",
+                  rendered_at=rendered_at)
     return v
 
 
-def sync_study2():
+def sync_study2(generation_id=None):
     """Study 2 — spatial containment (the membrane holds the individual together)."""
+    if generation_id is None:
+        generation_id = start_spine_generation()
     measures, context = spatial.containment_metrics()
+    rendered_at = _time.time()
     v = _apply_meter(STUDY2_DIR / "study.yaml", measures, context, _spatial_findings,
-                     "containment-meter", "spatial-containment")
+                     "containment-meter", "spatial-containment",
+                     generation_id=generation_id)
     viz.spatial_main(STUDY2_DIR / "charts")
+    _stamp_charts(STUDY2_DIR / "charts", generation_id=generation_id,
+                  source_run_id="containment-meter", rendered_at=rendered_at)
     return v
 
 
@@ -318,12 +397,18 @@ def _chemotaxis_findings(context, outcomes):
     ]
 
 
-def sync_study3():
+def sync_study3(generation_id=None):
     """Study 3 — adaptive chemotaxis (move toward food to survive: life becomes mind)."""
+    if generation_id is None:
+        generation_id = start_spine_generation()
     measures, context = chemotaxis.chemotaxis_metrics()
+    rendered_at = _time.time()
     v = _apply_meter(STUDY3_DIR / "study.yaml", measures, context, _chemotaxis_findings,
-                     "chemotaxis-meter", "chemotactic-agent")
+                     "chemotaxis-meter", "chemotactic-agent",
+                     generation_id=generation_id)
     viz.chemotaxis_main(STUDY3_DIR / "charts")
+    _stamp_charts(STUDY3_DIR / "charts", generation_id=generation_id,
+                  source_run_id="chemotaxis-meter", rendered_at=rendered_at)
     return v
 
 
@@ -349,12 +434,18 @@ def _growth_findings(context, outcomes):
     ]
 
 
-def sync_study4():
+def sync_study4(generation_id=None):
     """Study 4 — growth & division (one individual becomes a heterogeneous population)."""
+    if generation_id is None:
+        generation_id = start_spine_generation()
     measures, context = growth.growth_division_metrics()
+    rendered_at = _time.time()
     v = _apply_meter(STUDY4_DIR / "study.yaml", measures, context, _growth_findings,
-                     "growth-division-meter", "growing-population")
+                     "growth-division-meter", "growing-population",
+                     generation_id=generation_id)
     viz.growth_main(STUDY4_DIR / "charts")
+    _stamp_charts(STUDY4_DIR / "charts", generation_id=generation_id,
+                  source_run_id="growth-division-meter", rendered_at=rendered_at)
     return v
 
 
@@ -442,19 +533,25 @@ def _adversarial_findings(context, outcomes):
     ]
 
 
-def sync_study5():
+def sync_study5(generation_id=None):
     """Study 5 — adversarial probes (systems that should NOT qualify)."""
+    if generation_id is None:
+        generation_id = start_spine_generation()
     measures, context = compute_adversarial()
     return _apply_meter(STUDY5_DIR / "study.yaml", measures, context, _adversarial_findings,
-                        "adversarial-meter", "adversarial-probes")
+                        "adversarial-meter", "adversarial-probes",
+                        generation_id=generation_id)
 
 
 def sync_all():
-    sync()
-    sync_study2()
-    sync_study3()
-    sync_study4()
-    sync_study5()
+    # One coordinated result-generation for the whole spine run; every study run
+    # record + chart sidecar below is stamped with this id (provenance).
+    generation_id = start_spine_generation()
+    sync(generation_id)
+    sync_study2(generation_id)
+    sync_study3(generation_id)
+    sync_study4(generation_id)
+    sync_study5(generation_id)
 
 
 if __name__ == "__main__":
