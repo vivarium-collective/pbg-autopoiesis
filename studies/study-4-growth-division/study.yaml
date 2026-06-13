@@ -1,0 +1,126 @@
+schema_version: 4
+name: study-4-growth-division
+title: "Study 4 — growth & division: one individual becomes a heterogeneous population"
+created: '2026-06-12'
+phase: Evaluate
+status: completed
+design_status: approved
+implementation_status: complete
+simulation_status: ran
+evaluation_status: evaluated
+gate_status: passed
+
+objective: |
+  The precarious individual grows as its autopoietic loop runs and, past a size
+  threshold, DIVIDES into two daughters. The membrane is partitioned with noise so
+  daughters differ in size; a heritable trait is inherited with mutation so lineages
+  DIVERSIFY over generations — one individual becomes a population of non-identical
+  individuals. Division is itself precarious: a daughter that inherits too little
+  membrane to maintain itself dissolves — reproduction has a viability cost. This
+  heterogeneous population is the substrate on which study 5's selection can act.
+
+pipeline_gate:
+  prerequisites:
+  - study: study-3-adaptive-chemotaxis
+    condition: tests-passed
+  enables:
+  - study: study-5-selection
+    condition: tests-passed
+  proceed_condition: |
+    A founder reproduces into a population whose individuals differ in composition,
+    and division carries a viability cost (some daughters dissolve).
+
+  gate_evaluator:
+    result: passed
+    blocked_by: []
+    evaluated_by: code
+    diverges_from_authored: false
+baseline:
+- name: growing-population
+  composite: pbg_autopoiesis.composites.membrane-metabolism-loop
+  params:
+    supply_rate: 2.0
+
+behavior_tests:
+- name: reproduction
+  classification: primary
+  description: |
+    The precarious identity is inherited: a single founder grows and divides into a
+    population — the closed, self-maintaining individual reproduces across generations.
+  measure:
+    kind: derived_scalar
+    field: final_population
+  pass_if:
+    op: ">="
+    value: 10
+  requires_simulation: growing-population
+
+- name: heterogeneity
+  classification: primary
+  description: |
+    The population is diverse: noisy partitioning at division and heritable mutation
+    diversify lineages, so individuals differ measurably in composition (trait spread > 0).
+  measure:
+    kind: derived_scalar
+    field: composition_heterogeneity
+  pass_if:
+    op: ">="
+    value: 0.05
+  requires_simulation: growing-population
+
+- name: division-precariousness
+  classification: primary
+  description: |
+    Reproduction has a viability cost: a daughter that inherits too little membrane to
+    maintain itself dissolves. Division is precarious — not every daughter survives.
+  measure:
+    kind: derived_scalar
+    field: division_mortality
+  pass_if:
+    op: ">="
+    value: 0.01
+  requires_simulation: growing-population
+
+# runs + findings + gate_evaluator are computed + written by pbg_autopoiesis.spine.sync_study4()
+runs:
+- name: growth-division-meter
+  status: completed
+  composite: growing-population
+  outcomes:
+    reproduction:
+      result: PASS
+      observed: 300.0
+    heterogeneity:
+      result: PASS
+      observed: 0.1198
+    division-precariousness:
+      result: PASS
+      observed: 0.095
+findings:
+- id: F-01
+  kind: biological
+  status: confirms
+  statement: 'The precarious identity is inherited: one founder grows and divides into a population of
+    300, and noisy partitioning + heritable mutation diversify the lineages (trait spread 0.12). One individual
+    becomes a population of non-identical individuals.'
+  evidence:
+    from_test: heterogeneity
+    observed: 0.1198
+    units: population trait std
+- id: F-02
+  kind: biological
+  status: confirms
+  statement: 'Reproduction is precarious: 10% of daughters inherit too little membrane to maintain themselves
+    and dissolve. Division has a viability cost — the same self-maintenance, now across generations.'
+  evidence:
+    from_test: division-precariousness
+    observed: 0.095
+    units: fraction of daughters that dissolve
+
+visualizations:
+- name: population
+  chart: charts/s4_01_population.png
+- name: diversification
+  chart: charts/s4_02_diversification.png
+- name: heterogeneity
+  chart: charts/s4_03_heterogeneity.png

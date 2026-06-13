@@ -338,6 +338,66 @@ def chemotaxis_main(figdir):
     return list(figs)
 
 
+# === STUDY 4 — growth & division ===========================================
+def _growth_run():
+    from .growth import growth_division_metrics, FOUNDER_THETA
+    _, ctx = growth_division_metrics()
+    return ctx["h"], FOUNDER_THETA
+
+
+def fig_population_growth(h):
+    fig, ax = plt.subplots(figsize=(8, 4.4))
+    ax.plot(h["pop_size"], color=MEM, lw=2.8)
+    ax.fill_between(np.arange(len(h["pop_size"])), h["pop_size"], color=MEM, alpha=0.08)
+    ax.annotate("one founder", xy=(0, 1), xytext=(len(h["pop_size"]) * 0.12, max(h["pop_size"]) * 0.4),
+                color=MEM, fontsize=10, fontweight="bold",
+                arrowprops=dict(arrowstyle="->", color=MEM, lw=1.4))
+    _style(ax, "One individual becomes a population", "time", "number of individuals")
+    fig.tight_layout(); return fig
+
+
+def fig_diversification(h, founder):
+    fig, ax = plt.subplots(figsize=(8.4, 4.6))
+    snaps = [s for s in h["snapshots"] if len(s[1]) > 2]
+    cmap = plt.cm.viridis(np.linspace(0.2, 0.85, len(snaps)))
+    for (t, th), c in zip(snaps, cmap):
+        ax.hist(th, bins=28, density=True, histtype="stepfilled", alpha=0.35,
+                color=c, label=f"t={t}", edgecolor=c, lw=1.5)
+    ax.axvline(founder, color=STARVED, lw=1.6, ls=":", label="founder")
+    _style(ax, "Lineages diversify — heterogeneous compositions across the population",
+           "heritable trait", "density")
+    ax.legend(frameon=False, fontsize=9.5)
+    fig.tight_layout(); return fig
+
+
+def fig_heterogeneity_cost(h):
+    fig, ax = plt.subplots(figsize=(8, 4.4))
+    ax.plot(h["hetero"], color=MEM, lw=2.8)
+    ax.fill_between(np.arange(len(h["hetero"])), h["hetero"], color=MEM, alpha=0.08)
+    mort = h["deaths"] / max(h["divisions"], 1)
+    ax.text(0.97, 0.06,
+            f"division is precarious:\n{mort*100:.0f}% of daughters inherit too little\nmembrane to maintain themselves → dissolve",
+            transform=ax.transAxes, ha="right", va="bottom", fontsize=9.5, color=STARVED,
+            fontweight="bold")
+    _style(ax, "Composition heterogeneity grows over generations",
+           "time", "population trait spread (std)")
+    fig.tight_layout(); return fig
+
+
+def growth_main(figdir):
+    figdir = Path(figdir); figdir.mkdir(parents=True, exist_ok=True)
+    h, founder = _growth_run()
+    figs = {
+        "s4_01_population": fig_population_growth(h),
+        "s4_02_diversification": fig_diversification(h, founder),
+        "s4_03_heterogeneity": fig_heterogeneity_cost(h),
+    }
+    for name, fig in figs.items():
+        fig.savefig(figdir / f"{name}.png", bbox_inches="tight", facecolor="white")
+        plt.close(fig)
+    return list(figs)
+
+
 def main():
     FIGDIR.mkdir(exist_ok=True)
     fed = record(2.0); starved = record(0.0)

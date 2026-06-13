@@ -19,13 +19,14 @@ from pathlib import Path
 from ruamel.yaml import YAML
 
 from .loop import build_loop, run_trajectory, closure_of_loop
-from . import viz, spatial, chemotaxis
+from . import viz, spatial, chemotaxis, growth
 
 WS = Path(__file__).resolve().parent.parent
 STUDY_DIR = WS / "studies" / "study-1-membrane-metabolism-loop"
 STUDY_YAML = STUDY_DIR / "study.yaml"
 STUDY2_DIR = WS / "studies" / "study-2-spatial-containment"
 STUDY3_DIR = WS / "studies" / "study-3-adaptive-chemotaxis"
+STUDY4_DIR = WS / "studies" / "study-4-growth-division"
 
 _yaml = YAML()
 _yaml.preserve_quotes = True
@@ -218,10 +219,42 @@ def sync_study3():
     return v
 
 
+def _growth_findings(context, outcomes):
+    h = context["h"]
+    return [
+        {"id": "F-01", "kind": "biological", "status": "confirms",
+         "statement": (f"The precarious identity is inherited: one founder grows and divides into a "
+                       f"population of {int(outcomes['reproduction']['observed'])}, and noisy "
+                       f"partitioning + heritable mutation diversify the lineages (trait spread "
+                       f"{outcomes['heterogeneity']['observed']:.2f}). One individual becomes a "
+                       f"population of non-identical individuals."),
+         "evidence": {"from_test": "heterogeneity",
+                      "observed": outcomes["heterogeneity"]["observed"],
+                      "units": "population trait std"}},
+        {"id": "F-02", "kind": "biological", "status": "confirms",
+         "statement": (f"Reproduction is precarious: {outcomes['division-precariousness']['observed']*100:.0f}% "
+                       f"of daughters inherit too little membrane to maintain themselves and dissolve. "
+                       f"Division has a viability cost — the same self-maintenance, now across generations."),
+         "evidence": {"from_test": "division-precariousness",
+                      "observed": outcomes["division-precariousness"]["observed"],
+                      "units": "fraction of daughters that dissolve"}},
+    ]
+
+
+def sync_study4():
+    """Study 4 — growth & division (one individual becomes a heterogeneous population)."""
+    measures, context = growth.growth_division_metrics()
+    v = _apply_meter(STUDY4_DIR / "study.yaml", measures, context, _growth_findings,
+                     "growth-division-meter", "growing-population")
+    viz.growth_main(STUDY4_DIR / "charts")
+    return v
+
+
 def sync_all():
     sync()
     sync_study2()
     sync_study3()
+    sync_study4()
 
 
 if __name__ == "__main__":

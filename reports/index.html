@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8"><title>autopoiesis:autopoiesis-through-composition</title>
-<link rel="stylesheet" href="assets/style.css?v=1780021870_1779980157">
+<link rel="stylesheet" href="assets/style.css?v=1781314981_1781314981">
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
 /* Modal overlay */
@@ -104,6 +104,10 @@
 
 /* Workspace switcher (top of the left rail). */
 .viv-workspace-switcher { position: relative; padding: 8px 12px; }
+.viv-workspace-name {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; font-size: 13px; color: #1c2330;
+}
 .viv-workspace-switcher-trigger {
   display: flex; align-items: center; gap: 6px;
   width: 100%; padding: 6px 8px; background: #fff;
@@ -302,13 +306,11 @@
     </div>
 
     <div class="viv-workspace-switcher" id="viv-workspace-switcher">
-      <button class="viv-workspace-switcher-trigger" type="button"
-              aria-haspopup="true" aria-expanded="false"
-              id="viv-workspace-switcher-trigger">
+      <!-- One dashboard per repo: the workspace name is built in here, no switcher. -->
+      <div class="viv-workspace-name">
         <span class="viv-workspace-switcher-glyph">●</span>
-        <strong>autopoiesis:autopoiesis-through-composition</strong>
-        <span class="viv-arrow">▾</span>
-      </button>
+        <strong>autopoiesis</strong>
+      </div>
     </div>
 
     <!-- Primary nav -->
@@ -1532,8 +1534,8 @@ Nothing on <code id="pr-base-display-2">main</code> changes until someone presse
 
 <script src="assets/render-helpers.js"></script>
 <script src="assets/client.js" onerror="/* live mode unavailable */"></script>
-<script src="assets/walkthrough.js?v=1780021870_1779980157" onerror="/* walkthrough unavailable */"></script>
-<script src="assets/github-login.js?v=1780021870_1779980157" onerror="/* github-login unavailable */"></script>
+<script src="assets/walkthrough.js?v=1781314981_1781314981" onerror="/* walkthrough unavailable */"></script>
+<script src="assets/github-login.js?v=1781314981_1781314981" onerror="/* github-login unavailable */"></script>
 <script src="assets/investigations.js" onerror="/* investigations unavailable */"></script>
 <!-- workspace-switcher.js is intentionally not loaded: the left-rail dropdown
      it used to drive has been repurposed into the investigation switcher

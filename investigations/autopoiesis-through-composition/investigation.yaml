@@ -30,6 +30,7 @@ studies:
   - study-1-membrane-metabolism-loop
   - study-2-spatial-containment
   - study-3-adaptive-chemotaxis
+  - study-4-growth-division
 
 acceptance_criteria:
   - study: study-1-membrane-metabolism-loop
@@ -50,3 +51,9 @@ acceptance_criteria:
     behavior: agency-advantage
   - study: study-3-adaptive-chemotaxis
     behavior: sense-making
+  - study: study-4-growth-division
+    behavior: reproduction
+  - study: study-4-growth-division
+    behavior: heterogeneity
+  - study: study-4-growth-division
+    behavior: division-precariousness
