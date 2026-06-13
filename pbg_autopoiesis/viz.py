@@ -200,6 +200,76 @@ GALLERY = [
 ]
 
 
+# === STUDY 2 — spatial containment ========================================
+def _spatial_regimes():
+    from .spatial import containment_metrics, INSIDE
+    _, regimes = containment_metrics()
+    return regimes, INSIDE
+
+
+def fig_containment_profiles(regimes, INSIDE):
+    fig, ax = plt.subplots(figsize=(8.4, 4.6))
+    x = np.arange(regimes["held"]["C"].shape[1])
+    ax.axvspan(INSIDE.start, INSIDE.stop - 1, color="#eef2f7", label="cell interior")
+    ax.plot(x, regimes["held"]["C"][-1], color=FED, lw=2.8, label="fed + membrane → held together")
+    ax.plot(x, regimes["leaky"]["C"][-1], color=LIP, lw=2.4, ls="--", label="fed, no membrane → leaks out")
+    ax.plot(x, regimes["starved"]["C"][-1], color=STARVED, lw=2.4, ls=":", label="starved → disperses")
+    _style(ax, "The membrane holds the individual together against diffusion",
+           "space (lattice position)", "interior content concentration")
+    ax.legend(frameon=False, fontsize=9.5, loc="upper right")
+    fig.tight_layout(); return fig
+
+
+def fig_kymograph(regimes):
+    fig, axs = plt.subplots(1, 2, figsize=(9.4, 4.6))
+    for ax, key, title in ((axs[0], "held", "Held together (fed + membrane)"),
+                           (axs[1], "starved", "Dissolving (starved)")):
+        C = regimes[key]["C"]
+        im = ax.imshow(C, aspect="auto", origin="lower", cmap="magma",
+                       extent=[0, C.shape[1], 0, C.shape[0]], vmin=0, vmax=regimes["held"]["C"].max())
+        _style(ax, title, "space", "time"); ax.grid(False)
+    fig.colorbar(im, ax=axs, label="interior content", fraction=0.046, pad=0.02)
+    fig.suptitle("Space-time: a self-maintained individual vs. one dissolving into the medium",
+                 fontsize=13.5, fontweight="bold", color=ACCENT, y=1.02)
+    return fig
+
+
+def fig_containment_over_time(regimes):
+    fig, ax = plt.subplots(figsize=(8, 4.4))
+    styles = [("held", FED, "-", "fed + membrane"), ("leaky", LIP, "--", "fed, no membrane"),
+              ("starved", STARVED, ":", "starved")]
+    for key, col, ls, lab in styles:
+        ax.plot(regimes[key]["ratio"], color=col, lw=2.6, ls=ls, label=lab)
+    ax.axhline(1.0, color=MUTED, lw=0.8, ls=":")
+    ax.annotate("dispersed (ratio → 1)", xy=(0.6, 1.0), xycoords=("axes fraction", "data"),
+                color=MUTED, fontsize=9.5, va="bottom")
+    _style(ax, "Containment over time — the individual held together only as a process",
+           "time", "interior / exterior concentration ratio")
+    ax.legend(frameon=False, fontsize=9.5, loc="center right")
+    fig.tight_layout(); return fig
+
+
+SPATIAL_GALLERY = [
+    ("s2_01_profiles", "Containment", "The self-produced membrane keeps the interior concentrated; without it, metabolism alone leaks; starved, the individual disperses into the medium."),
+    ("s2_02_kymograph", "Space-time", "Left: a self-maintained individual holds a stable boundary. Right: starved, the boundary fails and the individual dissolves."),
+    ("s2_03_containment", "Held as a process", "Containment is high and stable only while the membrane is self-produced; stop the metabolism and it collapses toward the dispersed limit."),
+]
+
+
+def spatial_main(figdir):
+    figdir = Path(figdir); figdir.mkdir(parents=True, exist_ok=True)
+    regimes, INSIDE = _spatial_regimes()
+    figs = {
+        "s2_01_profiles": fig_containment_profiles(regimes, INSIDE),
+        "s2_02_kymograph": fig_kymograph(regimes),
+        "s2_03_containment": fig_containment_over_time(regimes),
+    }
+    for name, fig in figs.items():
+        fig.savefig(figdir / f"{name}.png", bbox_inches="tight", facecolor="white")
+        plt.close(fig)
+    return list(figs)
+
+
 def main():
     FIGDIR.mkdir(exist_ok=True)
     fed = record(2.0); starved = record(0.0)

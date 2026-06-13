@@ -1,0 +1,126 @@
+schema_version: 4
+name: study-2-spatial-containment
+title: "Study 2 — spatial containment: holding the individual together"
+created: '2026-06-12'
+phase: Evaluate
+status: completed
+design_status: approved
+implementation_status: complete
+simulation_status: ran
+evaluation_status: evaluated
+gate_status: passed
+
+objective: |
+  Study 1 had no space — "inside" was a scalar volume. In a medium the self-produced
+  interior would diffuse away and the individual would dissolve. Put the cell on a 1-D
+  lattice where interior content DIFFUSES and the self-produced membrane GATES the
+  boundary flux, and show that the membrane — built by the metabolism it contains —
+  is what holds the individual together against dispersion. The autopoiesis of
+  containment, with precariousness extended to space.
+
+pipeline_gate:
+  prerequisites:
+  - study: study-1-membrane-metabolism-loop
+    condition: tests-passed
+  enables:
+  - study: study-3-adaptive-chemotaxis
+    condition: tests-passed
+  proceed_condition: |
+    The interior is held together against diffusion by the self-produced membrane,
+    and disperses when the metabolism is withdrawn.
+
+  gate_evaluator:
+    result: passed
+    blocked_by: []
+    evaluated_by: code
+    diverges_from_authored: false
+baseline:
+- name: spatial-containment
+  composite: pbg_autopoiesis.composites.membrane-metabolism-loop
+  params:
+    supply_rate: 2.0
+
+behavior_tests:
+- name: containment
+  classification: primary
+  description: |
+    With the self-produced membrane, the interior stays concentrated against diffusion:
+    the interior/exterior concentration ratio is high (the individual is held together).
+  measure:
+    kind: derived_scalar
+    field: containment_ratio
+  pass_if:
+    op: ">="
+    value: 3.0
+  requires_simulation: spatial-containment
+
+- name: membrane-counters-diffusion
+  classification: primary
+  description: |
+    The membrane — not metabolism alone — is what contains: containment with the
+    membrane is many-fold higher than with metabolism but no membrane.
+  measure:
+    kind: derived_scalar
+    field: membrane_effect
+  pass_if:
+    op: ">="
+    value: 2.0
+  requires_simulation: spatial-containment
+
+- name: spatial-precariousness
+  classification: primary
+  description: |
+    Containment is held only as a process: starved, the membrane decays, the boundary
+    leaks, and the individual disperses — retaining only a fraction of its containment.
+    Measured as starved_containment / held_containment (small = strongly precarious).
+  measure:
+    kind: derived_scalar
+    field: precariousness_collapse
+  pass_if:
+    op: "<"
+    value: 0.3
+  requires_simulation: spatial-containment
+
+# runs + findings + gate_evaluator are computed + written by pbg_autopoiesis.spine.sync_study2()
+runs:
+- name: containment-meter
+  status: completed
+  composite: spatial-containment
+  outcomes:
+    containment:
+      result: PASS
+      observed: 60.3932
+    membrane-counters-diffusion:
+      result: PASS
+      observed: 13.8767
+    spatial-precariousness:
+      result: PASS
+      observed: 0.0434
+findings:
+- id: F-01
+  kind: structural
+  status: confirms
+  statement: 'The membrane holds the individual together against diffusion: the interior stays 60× more
+    concentrated than the medium with the self-produced membrane, vs 4.4× with metabolism alone. The membrane
+    — not metabolism — is what contains.'
+  evidence:
+    from_test: membrane-counters-diffusion
+    observed: 13.8767
+    units: containment fold vs no-membrane
+- id: F-02
+  kind: biological
+  status: confirms
+  statement: 'Containment is precarious: starved, the membrane decays, the boundary leaks, and the individual
+    disperses — retaining only 4% of its containment. The individual is held together only as a process.'
+  evidence:
+    from_test: spatial-precariousness
+    observed: 0.0434
+    units: starved/held containment fraction
+
+visualizations:
+- name: containment_profiles
+  chart: charts/s2_01_profiles.png
+- name: kymograph
+  chart: charts/s2_02_kymograph.png
+- name: containment_over_time
+  chart: charts/s2_03_containment.png

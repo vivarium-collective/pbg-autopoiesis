@@ -28,6 +28,7 @@ executive:
 
 studies:
   - study-1-membrane-metabolism-loop
+  - study-2-spatial-containment
 
 acceptance_criteria:
   - study: study-1-membrane-metabolism-loop
@@ -36,3 +37,9 @@ acceptance_criteria:
     behavior: precariousness
   - study: study-1-membrane-metabolism-loop
     behavior: identity-persists-when-fed
+  - study: study-2-spatial-containment
+    behavior: containment
+  - study: study-2-spatial-containment
+    behavior: membrane-counters-diffusion
+  - study: study-2-spatial-containment
+    behavior: spatial-precariousness
