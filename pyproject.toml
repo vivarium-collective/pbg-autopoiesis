@@ -1,0 +1,20 @@
+[project]
+name = "pbg-autopoiesis"
+version = "0.1.0"
+description = "A whole-cell model built as a precarious, self-bounding network via composition of existing parts."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "process-bigraph",
+    "bigraph-schema",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pbg_autopoiesis"]
