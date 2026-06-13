@@ -121,7 +121,9 @@ runs:
     spatial-precariousness:
       result: PASS
       observed: 0.0434
-  started_at: '2026-06-13T20:10:49.192922+00:00'
+  started_at: '2026-06-13T22:28:51.189355+00:00'
+  generation_id: gen-20260613T222846Z-d6fcc7
+  seed: 0
   n_steps: 500
 findings:
 - id: F-01
@@ -204,3 +206,9 @@ alternative_hypotheses:
   discriminated_by: the no-membrane negative control disperses (containment ~1x) under the same 
     geometry, isolating the membrane's role.
   status: excluded
+invariant_check:
+- study: study-1-membrane-metabolism-loop
+  test: precariousness
+  prior: 0.0351
+  now: 0.035136
+  status: preserved

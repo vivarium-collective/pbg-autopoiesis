@@ -100,7 +100,9 @@ runs:
     sense-making:
       result: PASS
       observed: 1.3939
-  started_at: '2026-06-13T20:10:49.849803+00:00'
+  started_at: '2026-06-13T22:28:52.152620+00:00'
+  generation_id: gen-20260613T222846Z-d6fcc7
+  seed: 0
   n_steps: 900
 findings:
 - id: F-01

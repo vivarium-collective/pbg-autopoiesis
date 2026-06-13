@@ -96,7 +96,9 @@ runs:
     division-precariousness:
       result: PASS
       observed: 0.0956
-  started_at: '2026-06-13T20:10:50.737182+00:00'
+  started_at: '2026-06-13T22:28:53.162483+00:00'
+  generation_id: gen-20260613T222846Z-d6fcc7
+  seed: 0
   n_steps: 600
 findings:
 - id: F-01

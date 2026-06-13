@@ -68,7 +68,8 @@ composition_commitment:
       them with systems that should NOT qualify (an externally-maintained mimic and
       a network missing its membrane producer). closure_gap_item is auto-filled with
       the gap the membrane producer closes in the broken probe.
-    closure_gap_item: []
+    closure_gap_item:
+    - membrane_lipids
   new_behavior:
   - rejects-external-maintenance
   - rejects-broken-closure
@@ -120,7 +121,9 @@ runs:
     rejects-broken-closure:
       result: PASS
       observed: 1.0
-  started_at: '2026-06-13T20:10:51.175120+00:00'
+  started_at: '2026-06-13T22:28:55.122823+00:00'
+  generation_id: gen-20260613T222846Z-d6fcc7
+  seed: 0
   n_steps: 160
 findings:
 - id: F-01
@@ -177,3 +180,175 @@ controls:
   expected: closure gap non-empty -> rejected
   observed: gap = ['membrane_lipids']
   result: PASS
+model_representation:
+  provides:
+  - lipid
+  - membrane_lipids
+  - nutrient
+  - precursor
+  - volume
+  requires:
+  - lipid
+  - membrane_lipids
+  - nutrient
+  - precursor
+  - volume
+  boundary:
+  - nutrient
+  gap: []
+  self_produced:
+  - lipid
+  - membrane_lipids
+  - nutrient
+  - precursor
+  - volume
+  interface_closed: true
+  semantic:
+    interface_closed: true
+    flux_nonzero:
+      lipid: true
+      membrane_lipids: true
+      nutrient: true
+      precursor: true
+      volume: true
+    all_self_produced_fluxed: true
+    semantically_closed: true
+    precariousness_ratio: 0.0351361966931859
+invariant_check:
+- study: study-1-membrane-metabolism-loop
+  test: operational-closure
+  prior: 0.0
+  now: 0.0
+  status: preserved
+- study: study-1-membrane-metabolism-loop
+  test: precariousness
+  prior: 0.0351
+  now: 0.035136
+  status: preserved
+ablations:
+- process: supply
+  target:
+  - nutrient
+  mode: knockout
+  behavior_test: rejects-external-maintenance
+  baseline_result: true
+  ablated_result: true
+  role: redundant
+  causally_necessary: false
+- process: supply
+  target:
+  - nutrient
+  mode: scale
+  behavior_test: rejects-external-maintenance
+  baseline_result: true
+  ablated_result: true
+  role: redundant
+  causally_necessary: false
+- process: metabolism
+  target:
+  - nutrient
+  mode: knockout
+  behavior_test: rejects-external-maintenance
+  baseline_result: true
+  ablated_result: true
+  role: redundant
+  causally_necessary: false
+- process: metabolism
+  target:
+  - nutrient
+  mode: scale
+  behavior_test: rejects-external-maintenance
+  baseline_result: true
+  ablated_result: true
+  role: redundant
+  causally_necessary: false
+- process: metabolism
+  target:
+  - precursor
+  mode: knockout
+  behavior_test: rejects-external-maintenance
+  baseline_result: true
+  ablated_result: true
+  role: redundant
+  causally_necessary: false
+- process: metabolism
+  target:
+  - precursor
+  mode: scale
+  behavior_test: rejects-external-maintenance
+  baseline_result: true
+  ablated_result: true
+  role: redundant
+  causally_necessary: false
+- process: metabolism
+  target:
+  - lipid
+  mode: knockout
+  behavior_test: rejects-external-maintenance
+  baseline_result: true
+  ablated_result: true
+  role: redundant
+  causally_necessary: false
+- process: metabolism
+  target:
+  - lipid
+  mode: scale
+  behavior_test: rejects-external-maintenance
+  baseline_result: true
+  ablated_result: true
+  role: redundant
+  causally_necessary: false
+- process: membrane
+  target:
+  - lipid
+  mode: knockout
+  behavior_test: rejects-external-maintenance
+  baseline_result: true
+  ablated_result: true
+  role: redundant
+  causally_necessary: false
+- process: membrane
+  target:
+  - lipid
+  mode: scale
+  behavior_test: rejects-external-maintenance
+  baseline_result: true
+  ablated_result: true
+  role: redundant
+  causally_necessary: false
+- process: membrane
+  target:
+  - membrane_lipids
+  mode: knockout
+  behavior_test: rejects-external-maintenance
+  baseline_result: true
+  ablated_result: true
+  role: redundant
+  causally_necessary: false
+- process: membrane
+  target:
+  - membrane_lipids
+  mode: scale
+  behavior_test: rejects-external-maintenance
+  baseline_result: true
+  ablated_result: true
+  role: redundant
+  causally_necessary: false
+- process: boundary
+  target:
+  - volume
+  mode: knockout
+  behavior_test: rejects-external-maintenance
+  baseline_result: true
+  ablated_result: true
+  role: redundant
+  causally_necessary: false
+- process: boundary
+  target:
+  - volume
+  mode: scale
+  behavior_test: rejects-external-maintenance
+  baseline_result: true
+  ablated_result: true
+  role: redundant
+  causally_necessary: false
