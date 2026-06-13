@@ -113,8 +113,8 @@ runs:
     sense-making:
       result: PASS
       observed: 1.3939
-  started_at: '2026-06-13T22:28:52.152620+00:00'
-  generation_id: gen-20260613T222846Z-d6fcc7
+  started_at: '2026-06-13T23:31:33.271430+00:00'
+  generation_id: gen-20260613T233127Z-c50ec7
   seed: 0
   n_steps: 900
 findings:
@@ -123,10 +123,6 @@ findings:
   status: confirms
   tier: interpretation
   mechanism_origin: engineered
-  claim_scope: behavioral     # critique #21 — a measured survival advantage of sensing vs blind
-  generality:                 # critique #22 — robust over 12 seeds (stochastic ICs), single composite/no param sweep
-    axes_tested: [initial_conditions]
-    level: instance_specific
   statement: 'Agency in service of survival: chemotactic agents climb the gradient, find food, and survive
     (79%), while blind agents random-walk and dissolve (only 35% survive) — a 2.3× survival advantage
     (mean ± 0.26 across 12 seeds; 12/12 favour sensing). Without sensing, the agent cannot maintain viability.'
@@ -134,7 +130,11 @@ findings:
     from_test: agency-advantage
     observed: 2.326
     units: chemotactic/blind survival
-  next_action_type: calibrate  # critique #7
+  claim_scope: behavioral
+  generality:                 # critique #22 — robust over 12 seeds (stochastic ICs), single composite/no param sweep
+    axes_tested: [initial_conditions]
+    level: instance_specific
+  next_action_type: calibrate
   next_action: >-
     Add a weakly-sensing (borderline) agent so the survival metric is calibrated across
     fail→borderline→pass, not just the pass/fail extremes (review C4).
@@ -143,7 +143,6 @@ findings:
   status: confirms
   tier: interpretation
   mechanism_origin: engineered
-  claim_scope: theoretical    # critique #21 — "sense-making / life becomes mind" is the autopoietic READING of an engineered rule
   statement: "Sense-making: the nutrient gradient is meaningful from the perspective of the precarious
     identity — chemotactic agents experience 1.39× more food than blind ones. Value (food = viable) is
     grounded in the cell's own viability, not assigned from outside. (Interpretation: 'sense-making' is
@@ -152,6 +151,7 @@ findings:
     from_test: sense-making
     observed: 1.3939
     units: chemotactic/blind nutrient experienced
+  claim_scope: theoretical
 visualizations:
 - name: trajectories
   chart: charts/s3_01_trajectories.png
@@ -167,8 +167,8 @@ calibration_ladder:
   metric: chemotaxis_survival
   known_fail: blind-motile-agent
   known_pass: chemotactic-agent
-  borderline: null
-  stress: null
+  borderline:
+  stress:
 
 controls:
 - name: chemotactic-agent

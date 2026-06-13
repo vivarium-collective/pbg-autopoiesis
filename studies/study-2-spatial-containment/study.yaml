@@ -134,8 +134,8 @@ runs:
     spatial-precariousness:
       result: PASS
       observed: 0.0434
-  started_at: '2026-06-13T22:28:51.189355+00:00'
-  generation_id: gen-20260613T222846Z-d6fcc7
+  started_at: '2026-06-13T23:31:32.303560+00:00'
+  generation_id: gen-20260613T233127Z-c50ec7
   seed: 0
   n_steps: 500
 findings:
@@ -143,10 +143,6 @@ findings:
   kind: structural
   status: confirms
   tier: observation
-  claim_scope: mechanism      # critique #21 — the membrane (not diffusion physics) is the containing mechanism
-  generality:                 # critique #22 — containment shown across the diffusion (D) sweep
-    axes_tested: [parameter_regime]
-    level: mechanism
   statement: 'The membrane holds the individual together against diffusion: the interior stays 60× more
     concentrated than the medium with the self-produced membrane, vs 4.4× with metabolism alone. The membrane
     — not metabolism — is what contains.'
@@ -154,6 +150,10 @@ findings:
     from_test: membrane-counters-diffusion
     observed: 13.8767
     units: containment fold vs no-membrane
+  claim_scope: mechanism
+  generality:                 # critique #22 — containment shown across the diffusion (D) sweep
+    axes_tested: [parameter_regime]
+    level: mechanism
 - id: F-02
   kind: biological
   status: confirms

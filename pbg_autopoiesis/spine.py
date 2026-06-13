@@ -511,7 +511,22 @@ def _apply_meter(study_path, measures, context, findings_fn, run_name, composite
             run_rec["duration_sec"] = round(float(context["duration_s"]), 3)
     study["runs"] = [run_rec]
     study["pipeline_gate"]["gate_evaluator"] = verdict
-    study["findings"] = findings_fn(context, outcomes)
+    # Regenerate the COMPUTED findings, but carry over any AUTHORED per-finding
+    # sub-fields (claim_scope / generality / lifecycle_state / next_action_type /
+    # next_action) keyed by finding id, so recomputation never wipes the human's
+    # measurement-integrity annotations (the authored-vs-computed contract, #17).
+    _authored = {}
+    for _f in study.get("findings", []) or []:
+        if isinstance(_f, dict) and _f.get("id"):
+            _authored[_f["id"]] = {k: _f[k] for k in
+                ("claim_scope", "generality", "lifecycle_state",
+                 "next_action_type", "next_action") if k in _f}
+    new_findings = findings_fn(context, outcomes)
+    for _f in new_findings:
+        if isinstance(_f, dict) and _authored.get(_f.get("id")):
+            for k, v in _authored[_f["id"]].items():
+                _f.setdefault(k, v)
+    study["findings"] = new_findings
     # Record cross-seed robustness when the metric function replicated (the rigor
     # scorecard reads robustness.n_replicates / seeds). Stochastic studies become
     # a distribution, not a single run.

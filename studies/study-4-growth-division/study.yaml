@@ -109,8 +109,8 @@ runs:
     division-precariousness:
       result: PASS
       observed: 0.0956
-  started_at: '2026-06-13T22:28:53.162483+00:00'
-  generation_id: gen-20260613T222846Z-d6fcc7
+  started_at: '2026-06-13T23:31:34.270343+00:00'
+  generation_id: gen-20260613T233127Z-c50ec7
   seed: 0
   n_steps: 600
 findings:
@@ -118,7 +118,6 @@ findings:
   kind: biological
   status: confirms
   tier: observation
-  claim_scope: behavioral     # critique #21 — measured population-level diversity outcome
   statement: 'The precarious identity is inherited: one founder grows and divides into a population of
     300, and noisy partitioning + heritable mutation diversify the lineages (trait spread 0.11). One individual
     becomes a population of non-identical individuals.'
@@ -126,17 +125,18 @@ findings:
     from_test: heterogeneity
     observed: 0.1142
     units: population trait std
+  claim_scope: behavioral
 - id: F-02
   kind: biological
   status: confirms
   tier: mechanism
-  claim_scope: mechanism      # critique #21 — division-mortality is the self-maintenance cost mechanism across generations
   statement: 'Reproduction is precarious: 10% of daughters inherit too little membrane to maintain themselves
     and dissolve. Division has a viability cost — the same self-maintenance, now across generations.'
   evidence:
     from_test: division-precariousness
     observed: 0.0956
     units: fraction of daughters that dissolve
+  claim_scope: mechanism
 visualizations:
 - name: population
   chart: charts/s4_01_population.png
@@ -186,10 +186,10 @@ discovery_implications:
     to EMERGE from autopoietic self-maintenance (review C7).
   - No control distinguishing engineered copying from autopoietic self-reproduction.
   alternate_hypotheses:
-  - hypothesis: The population growth demonstrates engineered copying, not autopoietic
+  - hypothesis: The population growth demonstrates engineered copying, not autopoietic 
       self-reproduction.
     hypothesis_id: H-viability-without-self-production   # critique #6 — copying-without-self-maintenance link
-    why_plausible: the split/inherit/partition rules are coded, not derived from the
+    why_plausible: the split/inherit/partition rules are coded, not derived from the 
       membrane/metabolism loop.
     discriminating_observables:
     - "a no-self-maintenance reproduction control: copies that do not metabolise should still 'divide'

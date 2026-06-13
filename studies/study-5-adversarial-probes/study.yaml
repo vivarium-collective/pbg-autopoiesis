@@ -139,8 +139,8 @@ runs:
     rejects-broken-closure:
       result: PASS
       observed: 1.0
-  started_at: '2026-06-13T22:28:55.122823+00:00'
-  generation_id: gen-20260613T222846Z-d6fcc7
+  started_at: '2026-06-13T23:31:36.214374+00:00'
+  generation_id: gen-20260613T233127Z-c50ec7
   seed: 0
   n_steps: 160
 findings:
@@ -148,18 +148,17 @@ findings:
   kind: structural
   status: confirms
   tier: observation
-  claim_scope: behavioral     # critique #21 — measured: the mimic persists when starved (precariousness fails)
   statement: 'The framework REJECTS an externally-maintained mimic: clamped from outside it persists when
     starved (precariousness fails), so the metric does not mistake external upkeep for self-production.'
   evidence:
     from_test: rejects-external-maintenance
     observed: 8.9022
     units: persistence vs self-producing loop
+  claim_scope: behavioral
 - id: F-02
   kind: structural
   status: confirms
   tier: observation
-  claim_scope: mechanism      # critique #21 — structural: missing producer leaves a non-empty closure gap
   statement: "The framework REJECTS a network missing self-production: removing the membrane producer
     leaves a non-empty closure gap (['membrane_lipids']), so a structurally-incomplete network does not
     pass operational closure."
@@ -167,6 +166,7 @@ findings:
     from_test: rejects-broken-closure
     observed: 1.0
     units: types in gap
+  claim_scope: mechanism
 visualizations: []
 robustness:
   parameter_sweep: true
