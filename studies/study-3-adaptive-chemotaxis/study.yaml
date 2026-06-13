@@ -104,24 +104,24 @@ findings:
 - id: F-01
   kind: biological
   status: confirms
-  statement: 'Agency in service of survival: chemotactic agents climb the gradient, find food, and survive
-    (79%), while blind agents random-walk and dissolve (only 35% survive) — a 2.2× survival advantage.
-    Without sensing, the agent cannot maintain viability.'
+  statement: 'Agency in service of survival: chemotactic agents climb the gradient, find food, and survive (79%), while blind agents random-walk and dissolve (only 35% survive) — a 2.2× survival advantage. Without sensing, the agent cannot maintain viability.'
   evidence:
     from_test: agency-advantage
     observed: 2.25
     units: chemotactic/blind survival
+  tier: interpretation
+  mechanism_origin: engineered
 - id: F-02
   kind: biological
   status: confirms
-  statement: "Sense-making: the nutrient gradient is meaningful from the perspective of the precarious
-    identity — chemotactic agents experience 1.33× more food than blind ones. Value (food = viable) is
-    grounded in the cell's own viability, not assigned from outside. This is where life becomes mind."
+  statement: "Sense-making: the nutrient gradient is meaningful from the perspective of the precarious identity — chemotactic agents experience 1.33× more food than blind ones. Value (food = viable) is grounded in the cell's own viability, not assigned from outside. This is where life becomes mind."
   evidence:
     from_test: sense-making
     observed: 1.335
     units: chemotactic/blind nutrient experienced
 
+  tier: interpretation
+  mechanism_origin: engineered
 visualizations:
 - name: trajectories
   chart: charts/s3_01_trajectories.png
@@ -129,3 +129,15 @@ visualizations:
   chart: charts/s3_02_survival.png
 - name: landscape
   chart: charts/s3_03_landscape.png
+controls:
+- name: blind-motile-agent
+  kind: negative
+  hypothesis: A motile-but-non-sensing agent (random walk, no gradient sensing) should survive markedly worse if sensing — not mere movement — drives survival.
+  expected: lower survival than chemotactic
+  observed: 35% vs 79% survival (chemotactic 2.25x)
+  result: PASS
+alternative_hypotheses:
+- claim: The survival gain is plain movement toward resources, not gradient sensing / sense-making.
+  discriminated_by: the blind-motile-agent control (moves by random walk but does not sense the gradient) survives far worse, so movement alone does not account for the gain.
+  status: excluded
+falsifiability: The survival advantage — and the agency / sense-making reading — would be unsupported if the motile-but-blind control matched chemotactic survival, i.e. if the gain were due to movement alone rather than gradient sensing.
