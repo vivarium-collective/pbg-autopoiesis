@@ -129,8 +129,33 @@ def evaluate(study, measures):
     return outcomes
 
 
-def gate_evaluator(outcomes):
-    """The verdict rule (matches study_verdict): passed iff no FAIL and >=1 PASS."""
+# Authored ``gate_status`` values → the computed-result vocabulary, so the
+# authored expectation and the computed verdict can be compared by equality.
+# Mirrors ``pbg_superpowers.study_verdict._GATE_STATUS_MAP``.
+_GATE_STATUS_MAP = {
+    "passed": "passed",
+    "failed": "failed",
+    "failed_evaluation": "failed",
+    "blocked": "blocked",
+    "needs_calibration": "needs_calibration",
+}
+
+
+def gate_evaluator(outcomes, authored_gate_status=None):
+    """The verdict rule (matches study_verdict): passed iff no FAIL and >=1 PASS.
+
+    ``diverges_from_authored`` compares the study's authored ``gate_status``
+    (mapped to the result vocabulary) against the computed verdict — the same
+    authored-vs-computed compare as the canonical spine. It defaults to ``False``
+    when there is no recognised authored ``gate_status`` (no comparison possible)
+    or when the two agree.
+
+    The canonical logic lives in ``pbg_superpowers.study_verdict`` (the compare at
+    study_verdict.py:162-174). It is replicated here rather than imported because
+    the installed pbg_superpowers exposes only ``write_gate_evaluator``, which
+    re-reads and rewrites the whole study file via its own verdict path — the
+    spine already owns that write and its own (simpler) verdict rule.
+    """
     results = [o["result"] for o in outcomes.values()]
     fails = [t for t, o in outcomes.items() if o["result"] == "FAIL"]
     if fails:
@@ -139,8 +164,10 @@ def gate_evaluator(outcomes):
         result = "passed"
     else:
         result = "not_started"
+    authored_mapped = _GATE_STATUS_MAP.get(str(authored_gate_status or "").strip().lower())
+    diverges = bool(authored_mapped is not None and authored_mapped != result)
     return {"result": result, "blocked_by": fails, "evaluated_by": "code",
-            "diverges_from_authored": False}
+            "diverges_from_authored": diverges}
 
 
 def _findings(context, outcomes):
@@ -205,7 +232,7 @@ def _apply_meter(study_path, measures, context, findings_fn, run_name, composite
     run outcomes + gate_evaluator + findings. The schema framework driving the spine."""
     study = _yaml.load(study_path.read_text(encoding="utf-8"))
     outcomes = evaluate(study, measures)
-    verdict = gate_evaluator(outcomes)
+    verdict = gate_evaluator(outcomes, study.get("gate_status"))
     import datetime as _dt
     run_rec = {"name": run_name, "status": "completed", "composite": composite,
                "outcomes": {t: dict(o) for t, o in outcomes.items()},
