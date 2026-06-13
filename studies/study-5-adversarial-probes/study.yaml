@@ -55,6 +55,30 @@ falsifiability: |
   from external upkeep), or if the membrane-less network achieved a closed gap —
   i.e. if a superficially-similar or externally-sustained system passed.
 
+# composition_commitment — this study adds no new self-production component; it
+# re-tests study-1's loop against adversarial mimics and RE-CHECKS study-1's
+# invariants (operational closure + precariousness) in the current code.
+# closure_gap_item is auto-filled by the meter (spine) with the gap the membrane
+# producer closes in the broken-network probe.
+composition_commitment:
+  component_added: []
+  deficit_addressed:
+    note: >-
+      Calibrates the operational-closure + precariousness criteria by confronting
+      them with systems that should NOT qualify (an externally-maintained mimic and
+      a network missing its membrane producer). closure_gap_item is auto-filled with
+      the gap the membrane producer closes in the broken probe.
+    closure_gap_item: []
+  new_behavior:
+  - rejects-external-maintenance
+  - rejects-broken-closure
+  invariants_required:
+  - {study: study-1-membrane-metabolism-loop, test: operational-closure}
+  - {study: study-1-membrane-metabolism-loop, test: precariousness}
+  alternatives_excluded:
+  - externally-maintained-mimic
+  - missing-self-production-network
+
 alternative_hypotheses:
 - claim: "Passing the four constructive studies just shows the criteria were tuned to those models, not
     that they discriminate."

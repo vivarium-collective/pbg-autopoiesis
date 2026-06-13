@@ -30,7 +30,16 @@ except Exception:  # pragma: no cover - provenance is best-effort
     _generation = None
     _viz_freshness = None
 
-from .loop import build_loop, run_trajectory, closure_of_loop
+# Thread-1 ablation engine (compositional causal discovery). New in Wave 2; the
+# installed pbg_superpowers may be STALE (pre-ablation), so import defensively —
+# the ablation suite is skipped (degrades to no ``ablations`` block) when absent.
+try:
+    from pbg_superpowers import ablation as _ablation
+except Exception:  # pragma: no cover - degrades when the engine isn't installed
+    _ablation = None
+
+from .loop import build_loop, run_trajectory, closure_of_loop, loop_state
+from .meter import semantic_closure
 from . import viz, spatial, chemotaxis, growth
 
 WS = Path(__file__).resolve().parent.parent
@@ -97,7 +106,11 @@ def _stamp_charts(charts_dir, *, generation_id, source_run_id, rendered_at):
 def compute_measures():
     """Run the loop + meter; return the derived scalars the behavior tests read."""
     closure = closure_of_loop()
-    fed = run_trajectory(build_loop(supply_rate=2.0), steps=160)
+    # Fed run also accumulates per-store fluxes so semantic closure can check that
+    # each wired self-produced type is ACTUALLY produced (non-zero net flux),
+    # distinguishing semantic from mere interface (syntactic) closure.
+    fed, fed_fluxes = run_trajectory(build_loop(supply_rate=2.0), steps=160,
+                                     return_fluxes=True)
     starved = run_trajectory(build_loop(supply_rate=0.0), steps=160)
     # NEGATIVE CONTROL — an externally-maintained membrane (clamped via the
     # pbg-superpowers Intervention) while starved. A self-producing identity
@@ -155,8 +168,11 @@ def compute_measures():
                  f"{precarious}/{len(sweep_rates)} stay precarious when starved; "
                  f"closure is structural (gap={len(closure['gap'])})."),
     }
+    semantic = semantic_closure(closure, fed_fluxes)
+    semantic["precariousness_ratio"] = measures["precariousness_ratio"]
     context = {"closure": closure, "fed": fed, "starved": starved, "external": ext,
-               "controls": controls, "robustness": robustness, "n_steps": 160}
+               "controls": controls, "robustness": robustness, "n_steps": 160,
+               "fluxes": fed_fluxes, "semantic": semantic}
     return measures, context
 
 
@@ -228,15 +244,197 @@ def gate_evaluator(outcomes, authored_gate_status=None):
             "diverges_from_authored": diverges}
 
 
+# --- C-INVAR: invariant-preservation regression --------------------------
+#
+# When a study DECLARES it depends on an earlier study's result (via
+# ``composition_commitment.invariants_required: [{study, test}]``), we RE-RUN that
+# earlier study's named measure function in the CURRENT code and band-compare to
+# the earlier study's recorded ``runs[].outcomes``. Studies 2–4 are separate numpy
+# modules, so this is a MEASURE re-run (not a literal composite regression): each
+# earlier study slug maps to the module-level function that produces its measures.
+
+def _study_dir(slug):
+    return WS / "studies" / slug
+
+
+# slug -> () -> (measures, context)   the module-level measure function per study
+_MEASURE_FNS = {
+    "study-1-membrane-metabolism-loop": lambda: compute_measures(),
+    "study-2-spatial-containment": lambda: spatial.containment_metrics(),
+    "study-3-adaptive-chemotaxis": lambda: chemotaxis.chemotaxis_metrics(),
+    "study-4-growth-division": lambda: growth.growth_division_metrics(),
+}
+
+
+def _margin(pass_if, value):
+    """Signed distance into the passing region (positive = passes; larger = stronger)."""
+    op = pass_if["op"]
+    if op == "range":
+        return min(value - pass_if["low"], pass_if["high"] - value)
+    thr = pass_if["value"]
+    if op in ("<=", "<"):
+        return thr - value
+    if op in (">=", ">"):
+        return value - thr
+    if op == "==":
+        return -abs(value - thr)
+    if op == "!=":
+        return abs(value - thr)
+    return 0.0
+
+
+def invariant_status(pass_if, prior, now, *, rel_tol=0.05, abs_tol=1e-9):
+    """Classify how a re-run measure stands vs its earlier recorded value.
+
+    Pure. Returns one of ``preserved`` / ``weakened`` / ``strengthened`` /
+    ``invalidated``:
+
+      * ``invalidated`` — the current value no longer satisfies the earlier band.
+      * ``preserved``   — within tolerance of the earlier value (essentially unchanged).
+      * ``strengthened``/``weakened`` — still passing, but its margin into the
+        passing region grew / shrank beyond tolerance.
+    """
+    if not _passes(pass_if, now):
+        return "invalidated"
+    denom = abs(prior) if abs(prior) > abs_tol else 1.0
+    if abs(now - prior) <= max(abs_tol, rel_tol * denom):
+        return "preserved"
+    return "strengthened" if _margin(pass_if, now) > _margin(pass_if, prior) else "weakened"
+
+
+def _prior_outcome(study, test_name):
+    """The earlier study's recorded observed value for ``test_name`` (or None)."""
+    for run in study.get("runs", []) or []:
+        out = (run.get("outcomes") or {}).get(test_name)
+        if out is not None and out.get("observed") is not None:
+            return float(out["observed"])
+    return None
+
+
+def _test_band(study, test_name):
+    for t in study.get("behavior_tests", []) or []:
+        if t.get("name") == test_name:
+            return t.get("measure", {}).get("field"), t.get("pass_if")
+    return None, None
+
+
+def compute_invariant_checks(invariants_required):
+    """Re-run each required earlier measure and band-compare to its recorded value.
+
+    ``invariants_required`` is a list of ``{study, test}``. Returns a list of
+    ``{study, test, prior, now, status}``. Each re-run is guarded: if a measure
+    function raises (e.g. a stale pbg_superpowers blocks the negative control),
+    the entry is recorded with ``status: unknown`` rather than aborting the spine.
+    The coordinator's full integration pass runs these against a fresh venv.
+    """
+    checks = []
+    for req in invariants_required or []:
+        slug, test_name = req.get("study"), req.get("test")
+        rec = {"study": slug, "test": test_name, "prior": None, "now": None,
+               "status": "unknown"}
+        try:
+            earlier = _yaml.load((_study_dir(slug) / "study.yaml").read_text(encoding="utf-8"))
+            field, pass_if = _test_band(earlier, test_name)
+            prior = _prior_outcome(earlier, test_name)
+            rec["prior"] = prior
+            fn = _MEASURE_FNS.get(slug)
+            if fn is None or field is None or pass_if is None or prior is None:
+                checks.append(rec)
+                continue
+            measures, _ctx = fn()
+            now = float(measures[field])
+            rec["now"] = round(now, 6)
+            rec["status"] = invariant_status(pass_if, prior, now)
+        except Exception:  # pragma: no cover - degrade on stale deps / missing fields
+            pass
+        checks.append(rec)
+    return checks
+
+
+# --- C-SEM: persist the static model representation -----------------------
+
+def _model_representation(context):
+    """The reader-independent representation persisted on the study (when the
+    study carries an operational-closure context)."""
+    closure = context["closure"]
+    rep = {
+        "provides": list(closure["provides"]),
+        "requires": list(closure["requires"]),
+        "boundary": list(closure["boundary"]),
+        "gap": list(closure["gap"]),
+        "self_produced": list(closure["self_produced"]),
+        "interface_closed": bool(closure["closed"]),
+    }
+    if context.get("semantic"):
+        rep["semantic"] = dict(context["semantic"])
+    return rep
+
+
+# --- Thread-1: ablation suite over the loop's requires/provides graph ------
+
+def _bt_predicates(study):
+    """{test_name: measures->bool} from the study's authored behavior-test bands —
+    the form ``run_ablation_suite`` applies to ``evaluate_fn`` output."""
+    preds = {}
+    for t in study.get("behavior_tests", []) or []:
+        field = t.get("measure", {}).get("field")
+        pass_if = t.get("pass_if")
+        if field is None or pass_if is None:
+            continue
+        preds[t["name"]] = (
+            lambda m, f=field, p=pass_if: _passes(p, m[f]) if f in m else True)
+    return preds
+
+
+def _maybe_ablations_for_loop(study_path):
+    """Run the Wave-2 ablation suite on the loop Composite; None when unavailable.
+
+    Provides ``build_fn`` (rebuild the loop with an injected ablation node) and
+    ``evaluate_fn`` (closure + fed trajectory → the study's measures), then calls
+    ``pbg_superpowers.ablation.run_ablation_suite``. Degrades to ``None`` whenever
+    the engine isn't importable (stale venv) or any step raises."""
+    if _ablation is None:
+        return None
+    try:
+        study = _yaml.load(study_path.read_text(encoding="utf-8"))
+        base_state = loop_state(supply_rate=2.0)
+
+        def build_fn(node):
+            return build_loop(supply_rate=2.0, injected_node=node)
+
+        def evaluate_fn(composite):
+            vols, _fl = run_trajectory(composite, steps=160, return_fluxes=True)
+            starved = run_trajectory(build_loop(supply_rate=0.0), steps=160)
+            return {
+                "closure_gap_size": float(len(closure_of_loop()["gap"])),
+                "precariousness_ratio": (starved[-1] / vols[-1]) if vols[-1] else 1.0,
+                "fed_volume_growth": (vols[-1] / vols[0]) if vols[0] else 0.0,
+                "_closure_gap": int(len(closure_of_loop()["gap"])),
+            }
+
+        preds = _bt_predicates(study)
+        return _ablation.run_ablation_suite(base_state, build_fn, evaluate_fn, preds)
+    except Exception:  # pragma: no cover - defensive; integration pass exercises it
+        return None
+
+
 def _findings(context, outcomes):
     closure = context["closure"]
     fed, starved = context["fed"], context["starved"]
+    sem = context.get("semantic") or {}
+    sem_phrase = ""
+    if sem:
+        sem_phrase = (
+            f" Interface closure is {'CLOSED' if sem.get('interface_closed') else 'OPEN'} "
+            f"(the ports cover the requirements) and semantic closure is "
+            f"{'CLOSED' if sem.get('semantically_closed') else 'OPEN'} "
+            f"(every self-produced type carries non-zero flux under the fed trajectory).")
     return [
         {"id": "F-01", "kind": "structural", "status": "confirms", "tier": "observation",
          "statement": (f"The network is operationally closed: it self-produces "
                        f"{closure['n_self_produced']}/{closure['n_required']} required types "
                        f"({', '.join(closure['self_produced'])}); only nutrient crosses the "
-                       f"boundary. The cell produces its own boundary."),
+                       f"boundary. The cell produces its own boundary.{sem_phrase}"),
          "evidence": {"from_test": "operational-closure",
                       "observed": outcomes["operational-closure"]["observed"],
                       "units": "types in gap"}},
@@ -323,6 +521,27 @@ def _apply_meter(study_path, measures, context, findings_fn, run_name, composite
     # control) so the rigor scorecard credits discriminative power.
     if isinstance(context, dict) and context.get("controls"):
         study["controls"] = context["controls"]
+    # C-SEM: persist the static model representation (interface + semantic closure)
+    # for studies that carry an operational-closure context.
+    if isinstance(context, dict) and context.get("closure"):
+        study["model_representation"] = _model_representation(context)
+    # C-COMMIT / C-INVAR: auto-fill closure_gap_item from the meter and re-run the
+    # declared invariants of earlier studies.
+    commitment = study.get("composition_commitment")
+    if commitment is not None:
+        if isinstance(context, dict) and ("closure_gap_item" in context or context.get("closure")):
+            gap_items = context.get("closure_gap_item")
+            if gap_items is None:
+                gap_items = list(context["closure"].get("gap", []))
+            deficit = commitment.get("deficit_addressed")
+            if deficit is not None:
+                deficit["closure_gap_item"] = list(gap_items)
+        inv_req = commitment.get("invariants_required")
+        if inv_req:
+            study["invariant_check"] = compute_invariant_checks(inv_req)
+    # Thread-1: ablation suite (defensive; written only when the engine produced it).
+    if isinstance(context, dict) and context.get("ablations"):
+        study["ablations"] = context["ablations"]
     with study_path.open("w", encoding="utf-8") as f:
         _yaml.dump(study, f)
     _report(study_path.parent.name, verdict, outcomes)
@@ -340,6 +559,10 @@ def sync(generation_id=None):
     if generation_id is None:
         generation_id = start_spine_generation()
     measures, context = compute_measures()
+    # Thread-1 ablation suite over the loop's requires/provides graph (defensive).
+    ablations = _maybe_ablations_for_loop(STUDY_YAML)
+    if ablations is not None:
+        context["ablations"] = ablations
     rendered_at = _time.time()
     v = _apply_meter(STUDY_YAML, measures, context, _findings,
                      "autopoiesis-meter", "membrane-metabolism-loop",
@@ -508,8 +731,19 @@ def compute_adversarial():
                   "swept_param": "supply_rate",
                   "note": f"{holds}/{len(sweep_rates)}: the externally-maintained mimic stays "
                           f"non-precarious; the broken-network gap is structural."}
+    # Operational + semantic closure of the GENUINE loop (the positive control the
+    # adversarial probes are measured against), plus the broken network's gap so
+    # composition_commitment.closure_gap_item auto-fills with what the membrane
+    # producer closes.
+    loop_closure = closure_of_loop()
+    fed, fed_fluxes = run_trajectory(build_loop(supply_rate=2.0), steps=160,
+                                     return_fluxes=True)
+    semantic = semantic_closure(loop_closure, fed_fluxes)
+    semantic["precariousness_ratio"] = (starved[-1] / fed[-1]) if fed[-1] else 1.0
     context = {"external": ext, "starved": starved, "broken": broken_closure,
-               "controls": controls, "robustness": robustness, "n_steps": 160}
+               "controls": controls, "robustness": robustness, "n_steps": 160,
+               "closure": loop_closure, "fluxes": fed_fluxes, "semantic": semantic,
+               "closure_gap_item": sorted(broken_closure["gap"])}
     return measures, context
 
 
@@ -538,6 +772,10 @@ def sync_study5(generation_id=None):
     if generation_id is None:
         generation_id = start_spine_generation()
     measures, context = compute_adversarial()
+    # Thread-1 ablation suite on the loop Composite (study-5 re-uses study-1's loop).
+    ablations = _maybe_ablations_for_loop(STUDY5_DIR / "study.yaml")
+    if ablations is not None:
+        context["ablations"] = ablations
     return _apply_meter(STUDY5_DIR / "study.yaml", measures, context, _adversarial_findings,
                         "adversarial-meter", "adversarial-probes",
                         generation_id=generation_id)

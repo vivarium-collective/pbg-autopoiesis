@@ -81,6 +81,31 @@ behavior_tests:
     value: 0.3
   requires_simulation: spatial-containment
 
+# composition_commitment — the THEORETICAL commitment this study makes by adding a
+# component to its prerequisite (study-1). Authored; closure_gap_item is auto-fillable
+# from the meter (spine), and invariants_required feeds the C-INVAR regression check.
+composition_commitment:
+  component_added:
+  - spatial-lattice-diffusion          # interior content now diffuses in 1-D space
+  - membrane-gated-boundary-flux        # the self-produced membrane gates the boundary
+  deficit_addressed:
+    note: >-
+      Study 1 had no space — "inside" was a scalar volume that could not disperse.
+      This study adds spatial structure so the self-produced membrane has to hold the
+      individual together against diffusion (no closure-gap store is closed; the
+      deficit is spatial, not a missing self-production step).
+    closure_gap_item: []
+  new_behavior:
+  - containment
+  - membrane-counters-diffusion
+  - spatial-precariousness
+  invariants_required:
+  # The precarious self-producing identity from study-1 must still hold when space
+  # is added: re-run study-1's precariousness measure and band-check it is preserved.
+  - {study: study-1-membrane-metabolism-loop, test: precariousness}
+  alternatives_excluded:
+  - no-membrane
+
 # runs + findings + gate_evaluator are computed + written by pbg_autopoiesis.spine.sync_study2()
 runs:
 - name: containment-meter
