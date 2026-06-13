@@ -98,7 +98,7 @@ def compute_measures():
                  f"closure is structural (gap={len(closure['gap'])})."),
     }
     context = {"closure": closure, "fed": fed, "starved": starved, "external": ext,
-               "controls": controls, "robustness": robustness}
+               "controls": controls, "robustness": robustness, "n_steps": 160}
     return measures, context
 
 
@@ -206,8 +206,17 @@ def _apply_meter(study_path, measures, context, findings_fn, run_name, composite
     study = _yaml.load(study_path.read_text(encoding="utf-8"))
     outcomes = evaluate(study, measures)
     verdict = gate_evaluator(outcomes)
-    study["runs"] = [{"name": run_name, "status": "completed", "composite": composite,
-                      "outcomes": {t: dict(o) for t, o in outcomes.items()}}]
+    import datetime as _dt
+    run_rec = {"name": run_name, "status": "completed", "composite": composite,
+               "outcomes": {t: dict(o) for t, o in outcomes.items()},
+               "started_at": _dt.datetime.now(_dt.timezone.utc).isoformat()}
+    # Readily-available run metadata so the Runs tab columns fill in.
+    if isinstance(context, dict):
+        if context.get("n_steps") is not None:
+            run_rec["n_steps"] = int(context["n_steps"])
+        if context.get("duration_s") is not None:
+            run_rec["duration_sec"] = round(float(context["duration_s"]), 3)
+    study["runs"] = [run_rec]
     study["pipeline_gate"]["gate_evaluator"] = verdict
     study["findings"] = findings_fn(context, outcomes)
     # Record cross-seed robustness when the metric function replicated (the rigor
@@ -382,7 +391,7 @@ def compute_adversarial():
                   "note": f"{holds}/{len(sweep_rates)}: the externally-maintained mimic stays "
                           f"non-precarious; the broken-network gap is structural."}
     context = {"external": ext, "starved": starved, "broken": broken_closure,
-               "controls": controls, "robustness": robustness}
+               "controls": controls, "robustness": robustness, "n_steps": 160}
     return measures, context
 
 

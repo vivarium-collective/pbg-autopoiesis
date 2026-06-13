@@ -96,6 +96,8 @@ runs:
     rejects-broken-closure:
       result: PASS
       observed: 1.0
+  started_at: '2026-06-13T20:10:51.175120+00:00'
+  n_steps: 160
 findings:
 - id: F-01
   kind: structural

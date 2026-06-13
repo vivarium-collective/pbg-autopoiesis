@@ -91,7 +91,7 @@ def containment_metrics():
                   "swept_param": "D",
                   "note": f"{wins}/{len(sweep_D)} diffusion settings: membrane contains better than no-membrane."}
     return measures, {"held": held, "leaky": leaky, "starved": starved,
-                      "controls": controls, "robustness": robustness}
+                      "controls": controls, "robustness": robustness, "n_steps": 500}
 
 
 if __name__ == "__main__":

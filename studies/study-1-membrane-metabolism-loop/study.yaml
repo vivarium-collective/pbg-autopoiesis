@@ -96,12 +96,15 @@ runs:
     identity-persists-when-fed:
       result: PASS
       observed: 3.1497
+  started_at: '2026-06-13T20:10:48.652402+00:00'
+  n_steps: 160
 findings:
 - id: F-01
   kind: structural
   status: confirms
   tier: observation
-  statement: 'The network is operationally closed: it self-produces 5/5 required types (lipid, membrane_lipids, nutrient, precursor, volume); only nutrient crosses the boundary. The cell produces its own boundary.'
+  statement: 'The network is operationally closed: it self-produces 5/5 required types (lipid, membrane_lipids,
+    nutrient, precursor, volume); only nutrient crosses the boundary. The cell produces its own boundary.'
   evidence:
     from_test: operational-closure
     observed: 0.0
@@ -111,7 +114,9 @@ findings:
   status: confirms
   tier: mechanism
   mechanism_origin: emergent
-  statement: The identity is precarious — a process, not a container. Fed, the self-produced boundary grows and is maintained (volume 2.97 → 9.37); starved of nutrient it dissipates (2.97 → 0.329). It persists only through continuous self-production.
+  statement: The identity is precarious — a process, not a container. Fed, the self-produced 
+    boundary grows and is maintained (volume 2.97 → 9.37); starved of nutrient it dissipates (2.97 →
+    0.329). It persists only through continuous self-production.
   evidence:
     from_test: precariousness
     observed: 0.0351
@@ -131,38 +136,52 @@ visualizations:
   chart: charts/06_phase_portrait.png
 discovery_implications:
   resolved_uncertainties:
-  - 'Operational closure is CLOSED modulo nutrient (gap = requires \ provides \ boundary = empty): the boundary and metabolism are self-produced.'
+  - 'Operational closure is CLOSED modulo nutrient (gap = requires \ provides \ boundary = empty): the
+    boundary and metabolism are self-produced.'
   - 'The identity is precarious-but-maintained: volume collapses when self-production stops (fed vs starved).'
   remaining_uncertainties:
-  - Closure is shown at a single deterministic parameter point — robustness to supply_rate / decay is not yet demonstrated (a parameter sweep, not seeds, since the loop is an ODE).
-  - "The closure metric is not calibrated: no system that SHOULD fail closure has been run, so its discriminative power is unestablished (the reviewers' circularity concern)."
+  - Closure is shown at a single deterministic parameter point — robustness to supply_rate / decay 
+    is not yet demonstrated (a parameter sweep, not seeds, since the loop is an ODE).
+  - "The closure metric is not calibrated: no system that SHOULD fail closure has been run, so its discriminative
+    power is unestablished (the reviewers' circularity concern)."
   alternate_hypotheses:
-  - hypothesis: Closure restates how the network was wired (bookkeeping), not an emergent organizational property.
-    why_plausible: membrane, metabolism and derived variables are explicitly coupled by construction.
+  - hypothesis: Closure restates how the network was wired (bookkeeping), not an emergent 
+      organizational property.
+    why_plausible: membrane, metabolism and derived variables are explicitly coupled by 
+      construction.
     discriminating_observables:
     - closure_gap_size on an externally-maintained-membrane control (should NOT close)
     - closure_gap_size on a random-cyclic network (should NOT close)
   followup_study_proposals:
   - id: closure-parameter-sweep
     title: Closure robustness sweep
-    motivation: Show closure holds across a supply_rate/decay range, not at one point (review C4 for deterministic models).
+    motivation: Show closure holds across a supply_rate/decay range, not at one point (review C4 for
+      deterministic models).
   - id: external-membrane-negative-control
     title: Externally-maintained membrane (should FAIL)
-    motivation: If the membrane is supplied externally rather than self-produced, precariousness and closure should FAIL — calibrating the metric and showing discriminative power (review C1/C2/C9).
+    motivation: If the membrane is supplied externally rather than self-produced, precariousness and
+      closure should FAIL — calibrating the metric and showing discriminative power (review 
+      C1/C2/C9).
 controls:
 - name: self-producing-loop
   kind: positive
-  hypothesis: A genuinely self-producing loop should CLOSE and be precarious — the calibration point at the autopoietic end of the metric.
+  hypothesis: A genuinely self-producing loop should CLOSE and be precarious — the calibration point
+    at the autopoietic end of the metric.
   expected: closure CLOSED + collapses when starved
   observed: closure gap 0, precariousness 0.035
   result: PASS
 - name: externally-maintained-membrane
   kind: negative
-  hypothesis: If the membrane is clamped externally (not self-produced), the identity should NOT collapse when starved — precariousness is a property of self-production, not external maintenance.
+  hypothesis: If the membrane is clamped externally (not self-produced), the identity should NOT 
+    collapse when starved — precariousness is a property of self-production, not external 
+    maintenance.
   expected: persists when starved (precariousness fails)
   observed: final volume 2.93 vs starved 0.33 (9x more persistent)
   result: PASS
-falsifiability: The autopoiesis reading would be unsupported if the externally-maintained-membrane control collapsed like the starved loop (precariousness independent of self-production), or if a random/cyclic network achieved a closed gap — i.e. if the metric did not distinguish self-production from external upkeep or bookkeeping.
+falsifiability: The autopoiesis reading would be unsupported if the externally-maintained-membrane 
+  control collapsed like the starved loop (precariousness independent of self-production), or if a 
+  random/cyclic network achieved a closed gap — i.e. if the metric did not distinguish 
+  self-production from external upkeep or bookkeeping.
 robustness:
   parameter_sweep: true
   n_replicates: 5
@@ -173,8 +192,12 @@ robustness:
   - 2.5
   - 3.0
   swept_param: supply_rate
-  note: 5/5 rates grow the identity when fed; 5/5 stay precarious when starved; closure is structural (gap=0).
+  note: 5/5 rates grow the identity when fed; 5/5 stay precarious when starved; closure is 
+    structural (gap=0).
 alternative_hypotheses:
-- claim: Operational closure restates how the network was wired (bookkeeping), not an emergent organizational property.
-  discriminated_by: 'the externally-maintained-membrane negative control: an architecturally-similar system whose boundary is supplied from outside does NOT show precariousness, so closure+precariousness track self-production, not wiring.'
+- claim: Operational closure restates how the network was wired (bookkeeping), not an emergent 
+    organizational property.
+  discriminated_by: 'the externally-maintained-membrane negative control: an architecturally-similar system
+    whose boundary is supplied from outside does NOT show precariousness, so closure+precariousness track
+    self-production, not wiring.'
   status: excluded

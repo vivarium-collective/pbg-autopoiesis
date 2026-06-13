@@ -108,7 +108,7 @@ def growth_division_metrics(n_seeds=12):
          "observed": f"final population {no_maint_pop:.0f} vs {normal_pop:.0f} when self-maintaining",
          "result": "PASS" if no_maint_pop < 0.5 * max(normal_pop, 1e-9) else "FAIL"},
     ]
-    return measures, {"h": h0, "robustness": robustness, "controls": controls}
+    return measures, {"h": h0, "robustness": robustness, "controls": controls, "n_steps": 600}
 
 
 if __name__ == "__main__":

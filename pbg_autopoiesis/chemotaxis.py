@@ -91,7 +91,7 @@ def chemotaxis_metrics(n_seeds=12):
         "control_blind_survival_mean": float(np.mean(blind_survival)),
         "seeds_with_advantage": int(sum(1 for a in per["survival_advantage"] if a > 1.0)),
     }
-    return measures, {"chemo": chemo0, "blind": blind0, "robustness": robustness}
+    return measures, {"chemo": chemo0, "blind": blind0, "robustness": robustness, "n_steps": 900}
 
 
 if __name__ == "__main__":

@@ -96,12 +96,16 @@ runs:
     division-precariousness:
       result: PASS
       observed: 0.0956
+  started_at: '2026-06-13T20:10:50.737182+00:00'
+  n_steps: 600
 findings:
 - id: F-01
   kind: biological
   status: confirms
   tier: observation
-  statement: 'The precarious identity is inherited: one founder grows and divides into a population of 300, and noisy partitioning + heritable mutation diversify the lineages (trait spread 0.11). One individual becomes a population of non-identical individuals.'
+  statement: 'The precarious identity is inherited: one founder grows and divides into a population of
+    300, and noisy partitioning + heritable mutation diversify the lineages (trait spread 0.11). One individual
+    becomes a population of non-identical individuals.'
   evidence:
     from_test: heterogeneity
     observed: 0.1142
@@ -110,7 +114,8 @@ findings:
   kind: biological
   status: confirms
   tier: mechanism
-  statement: 'Reproduction is precarious: 10% of daughters inherit too little membrane to maintain themselves and dissolve. Division has a viability cost — the same self-maintenance, now across generations.'
+  statement: 'Reproduction is precarious: 10% of daughters inherit too little membrane to maintain themselves
+    and dissolve. Division has a viability cost — the same self-maintenance, now across generations.'
   evidence:
     from_test: division-precariousness
     observed: 0.0956
@@ -156,21 +161,27 @@ robustness:
       max: 0.11004056795131846
 discovery_implications:
   resolved_uncertainties:
-  - One founder grows and divides into a heterogeneous population (robust across 12 seeds; reaches carrying every seed).
+  - One founder grows and divides into a heterogeneous population (robust across 12 seeds; reaches 
+    carrying every seed).
   - 'Division is precarious: daughters that inherit too little membrane dissolve.'
   remaining_uncertainties:
-  - Reproduction is ENGINEERED — explicit division, inheritance and partitioning rules — not shown to EMERGE from autopoietic self-maintenance (review C7).
+  - Reproduction is ENGINEERED — explicit division, inheritance and partitioning rules — not shown 
+    to EMERGE from autopoietic self-maintenance (review C7).
   - No control distinguishing engineered copying from autopoietic self-reproduction.
   alternate_hypotheses:
-  - hypothesis: The population growth demonstrates engineered copying, not autopoietic self-reproduction.
-    why_plausible: the split/inherit/partition rules are coded, not derived from the membrane/metabolism loop.
+  - hypothesis: The population growth demonstrates engineered copying, not autopoietic 
+      self-reproduction.
+    why_plausible: the split/inherit/partition rules are coded, not derived from the 
+      membrane/metabolism loop.
     discriminating_observables:
-    - "a no-self-maintenance reproduction control: copies that do not metabolise should still 'divide' but not persist"
+    - "a no-self-maintenance reproduction control: copies that do not metabolise should still 'divide'
+      but not persist"
     - coupling of division rate to self-production rate
   followup_study_proposals:
   - id: engineered-vs-autopoietic-reproduction
     title: Engineered vs autopoietic reproduction (negative control)
-    motivation: Show the metric must couple reproduction to self-maintenance — copying without metabolism should not qualify (review C7).
+    motivation: Show the metric must couple reproduction to self-maintenance — copying without 
+      metabolism should not qualify (review C7).
 controls:
 - name: self-maintaining-lineage
   kind: positive
@@ -180,12 +191,16 @@ controls:
   result: PASS
 - name: no-self-maintenance-reproduction
   kind: negative
-  hypothesis: Reproduction without self-maintenance (no supply) should COLLAPSE — engineered copying alone is not autopoietic.
+  hypothesis: Reproduction without self-maintenance (no supply) should COLLAPSE — engineered copying
+    alone is not autopoietic.
   expected: lineage collapses
   observed: final population 1 vs 300 when self-maintaining
   result: PASS
-falsifiability: The 'reproduction extends autopoiesis' reading would be unsupported if the no-self-maintenance control still reached carrying — i.e. if engineered division persisted without metabolism.
+falsifiability: The 'reproduction extends autopoiesis' reading would be unsupported if the 
+  no-self-maintenance control still reached carrying — i.e. if engineered division persisted without
+  metabolism.
 alternative_hypotheses:
 - claim: The population growth demonstrates engineered copying, not autopoietic self-reproduction.
-  discriminated_by: the no-self-maintenance negative control (supply=0) collapses despite division firing, so persistence requires self-maintenance.
+  discriminated_by: the no-self-maintenance negative control (supply=0) collapses despite division 
+    firing, so persistence requires self-maintenance.
   status: excluded
