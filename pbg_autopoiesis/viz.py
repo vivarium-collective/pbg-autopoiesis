@@ -270,6 +270,74 @@ def spatial_main(figdir):
     return list(figs)
 
 
+# === STUDY 3 — adaptive chemotaxis ========================================
+def _chemo_runs():
+    from .chemotaxis import chemotaxis_metrics, X_FOOD, nutrient
+    _, ctx = chemotaxis_metrics()
+    return ctx["chemo"], ctx["blind"], X_FOOD, nutrient
+
+
+def fig_chemotaxis_trajectories(chemo, blind, X_FOOD):
+    fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
+    for ax, run, title, col in ((axs[0], chemo, "Chemotactic — climbs to food, survives", FED),
+                                (axs[1], blind, "Blind — wanders, dissolves", STARVED)):
+        X, alive = run["X"], run["alive"]
+        T, n = X.shape
+        t = np.arange(T)
+        for i in range(n):
+            ax.plot(X[:, i], t, color=col, lw=0.6, alpha=0.22)
+            if not alive[-1, i]:
+                d = int(np.argmin(alive[:, i]))
+                ax.scatter(X[d, i], d, color="#3a3a3a", s=8, zorder=3)
+        ax.axvline(X_FOOD, color=LIP, lw=2.2, ls="--", label="food source")
+        _style(ax, title, "position in environment", "time"); ax.set_xlim(0, 100)
+    axs[0].legend(frameon=False, fontsize=9, loc="upper left")
+    axs[0].scatter([], [], color="#3a3a3a", s=8, label="dissolved")
+    fig.suptitle("Movement toward food for survival — agency in service of self-maintenance",
+                 fontsize=13.5, fontweight="bold", color=ACCENT, y=1.0)
+    fig.tight_layout(); return fig
+
+
+def fig_survival_curves(chemo, blind):
+    fig, ax = plt.subplots(figsize=(8, 4.4))
+    ax.plot(chemo["alive"].mean(1), color=FED, lw=2.8, label=f"chemotactic — {chemo['survival']*100:.0f}% survive")
+    ax.plot(blind["alive"].mean(1), color=STARVED, lw=2.8, ls="--", label=f"blind — {blind['survival']*100:.0f}% survive")
+    ax.fill_between(np.arange(len(chemo["alive"])), chemo["alive"].mean(1), color=FED, alpha=0.08)
+    _style(ax, "Survival — sensing the gradient is the difference between living and dissolving",
+           "time", "fraction of the population alive")
+    ax.set_ylim(0, 1.02); ax.legend(frameon=False, fontsize=10, loc="lower left")
+    fig.tight_layout(); return fig
+
+
+def fig_nutrient_landscape(chemo, blind, X_FOOD, nutrient):
+    fig, ax = plt.subplots(figsize=(8.4, 4.6))
+    xs = np.linspace(0, 100, 300)
+    ax.plot(xs, nutrient(xs), color=LIP, lw=2.4, label="nutrient field")
+    ax.fill_between(xs, nutrient(xs), color=LIP, alpha=0.08)
+    cf = chemo["X"][-1][chemo["alive"][-1]]
+    bf = blind["X"][-1][blind["alive"][-1]]
+    ax.scatter(cf, nutrient(cf), color=FED, s=26, zorder=3, label="chemotactic survivors (at food)")
+    ax.scatter(bf, nutrient(bf), color=STARVED, s=26, zorder=3, marker="x", label="blind survivors (scattered)")
+    _style(ax, "Sense-making — the gradient is meaningful to a self that has something at stake",
+           "position in environment", "nutrient")
+    ax.legend(frameon=False, fontsize=9, loc="upper left")
+    fig.tight_layout(); return fig
+
+
+def chemotaxis_main(figdir):
+    figdir = Path(figdir); figdir.mkdir(parents=True, exist_ok=True)
+    chemo, blind, X_FOOD, nutrient = _chemo_runs()
+    figs = {
+        "s3_01_trajectories": fig_chemotaxis_trajectories(chemo, blind, X_FOOD),
+        "s3_02_survival": fig_survival_curves(chemo, blind),
+        "s3_03_landscape": fig_nutrient_landscape(chemo, blind, X_FOOD, nutrient),
+    }
+    for name, fig in figs.items():
+        fig.savefig(figdir / f"{name}.png", bbox_inches="tight", facecolor="white")
+        plt.close(fig)
+    return list(figs)
+
+
 def main():
     FIGDIR.mkdir(exist_ok=True)
     fed = record(2.0); starved = record(0.0)

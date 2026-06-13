@@ -19,12 +19,13 @@ from pathlib import Path
 from ruamel.yaml import YAML
 
 from .loop import build_loop, run_trajectory, closure_of_loop
-from . import viz, spatial
+from . import viz, spatial, chemotaxis
 
 WS = Path(__file__).resolve().parent.parent
 STUDY_DIR = WS / "studies" / "study-1-membrane-metabolism-loop"
 STUDY_YAML = STUDY_DIR / "study.yaml"
 STUDY2_DIR = WS / "studies" / "study-2-spatial-containment"
+STUDY3_DIR = WS / "studies" / "study-3-adaptive-chemotaxis"
 
 _yaml = YAML()
 _yaml.preserve_quotes = True
@@ -184,9 +185,43 @@ def sync_study2():
     return v
 
 
+def _chemotaxis_findings(context, outcomes):
+    chemo, blind = context["chemo"], context["blind"]
+    return [
+        {"id": "F-01", "kind": "biological", "status": "confirms",
+         "statement": (f"Agency in service of survival: chemotactic agents climb the gradient, "
+                       f"find food, and survive ({chemo['survival']*100:.0f}%), while blind agents "
+                       f"random-walk and dissolve (only {blind['survival']*100:.0f}% survive) — a "
+                       f"{outcomes['agency-advantage']['observed']:.1f}× survival advantage. Without "
+                       f"sensing, the agent cannot maintain viability."),
+         "evidence": {"from_test": "agency-advantage",
+                      "observed": outcomes["agency-advantage"]["observed"],
+                      "units": "chemotactic/blind survival"}},
+        {"id": "F-02", "kind": "biological", "status": "confirms",
+         "statement": (f"Sense-making: the nutrient gradient is meaningful from the perspective of "
+                       f"the precarious identity — chemotactic agents experience "
+                       f"{outcomes['sense-making']['observed']:.2f}× more food than blind ones. Value "
+                       f"(food = viable) is grounded in the cell's own viability, not assigned from "
+                       f"outside. This is where life becomes mind."),
+         "evidence": {"from_test": "sense-making",
+                      "observed": outcomes["sense-making"]["observed"],
+                      "units": "chemotactic/blind nutrient experienced"}},
+    ]
+
+
+def sync_study3():
+    """Study 3 — adaptive chemotaxis (move toward food to survive: life becomes mind)."""
+    measures, context = chemotaxis.chemotaxis_metrics()
+    v = _apply_meter(STUDY3_DIR / "study.yaml", measures, context, _chemotaxis_findings,
+                     "chemotaxis-meter", "chemotactic-agent")
+    viz.chemotaxis_main(STUDY3_DIR / "charts")
+    return v
+
+
 def sync_all():
     sync()
     sync_study2()
+    sync_study3()
 
 
 if __name__ == "__main__":

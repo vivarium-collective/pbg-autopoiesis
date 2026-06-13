@@ -1,0 +1,131 @@
+schema_version: 4
+name: study-3-adaptive-chemotaxis
+title: "Study 3 — adaptive chemotaxis: move toward food to survive"
+created: '2026-06-12'
+phase: Evaluate
+status: completed
+design_status: approved
+implementation_status: complete
+simulation_status: ran
+evaluation_status: evaluated
+gate_status: passed
+
+objective: |
+  Place the precarious individual in an environment with a nutrient gradient and give
+  it a sensorimotor loop: sense the local nutrient, run-and-tumble (tumble less when
+  nutrient is rising), move. The nutrient feeds the metabolism that maintains the
+  membrane that keeps it alive. Show that a chemotactic agent climbs the gradient,
+  finds food, and survives — while a blind agent random-walks, starves, and dissolves.
+  This is where life becomes mind: the gradient is MEANINGFUL from the perspective of
+  the precarious identity (up-gradient = viable, down-gradient = dissolution). Value is
+  grounded in the cell's own viability, not assigned from outside — sense-making, and
+  agency in service of self-maintenance.
+
+pipeline_gate:
+  prerequisites:
+  - study: study-2-spatial-containment
+    condition: tests-passed
+  enables:
+  - study: study-4-growth-division
+    condition: tests-passed
+  proceed_condition: |
+    A chemotactic agent out-survives a blind one by finding and staying at food;
+    without sensing, the agent cannot maintain viability and dissolves.
+
+  gate_evaluator:
+    result: passed
+    blocked_by: []
+    evaluated_by: code
+    diverges_from_authored: false
+baseline:
+- name: chemotactic-agent
+  composite: pbg_autopoiesis.composites.membrane-metabolism-loop
+  params:
+    supply_rate: 2.0
+
+behavior_tests:
+- name: chemotaxis-survival
+  classification: primary
+  description: |
+    Agents that sense the gradient and move up it survive: the chemotactic
+    population maintains viability by finding and staying at food.
+  measure:
+    kind: derived_scalar
+    field: chemotaxis_survival
+  pass_if:
+    op: ">="
+    value: 0.6
+  requires_simulation: chemotactic-agent
+
+- name: agency-advantage
+  classification: primary
+  description: |
+    Agency is in service of survival: chemotactic agents out-survive blind ones
+    (survival_advantage = chemotactic_survival / blind_survival). Disable sensing
+    and the agent dissolves — the sensorimotor loop is constitutive of staying alive.
+  measure:
+    kind: derived_scalar
+    field: survival_advantage
+  pass_if:
+    op: ">="
+    value: 1.5
+  requires_simulation: chemotactic-agent
+
+- name: sense-making
+  classification: primary
+  description: |
+    The gradient is meaningful to a self with something at stake: chemotactic agents
+    experience more food than blind ones (gradient_advantage) — they make the
+    environment matter from the perspective of their own viability.
+  measure:
+    kind: derived_scalar
+    field: gradient_advantage
+  pass_if:
+    op: ">="
+    value: 1.15
+  requires_simulation: chemotactic-agent
+
+# runs + findings + gate_evaluator are computed + written by pbg_autopoiesis.spine.sync_study3()
+runs:
+- name: chemotaxis-meter
+  status: completed
+  composite: chemotactic-agent
+  outcomes:
+    chemotaxis-survival:
+      result: PASS
+      observed: 0.7875
+    agency-advantage:
+      result: PASS
+      observed: 2.25
+    sense-making:
+      result: PASS
+      observed: 1.335
+findings:
+- id: F-01
+  kind: biological
+  status: confirms
+  statement: 'Agency in service of survival: chemotactic agents climb the gradient, find food, and survive
+    (79%), while blind agents random-walk and dissolve (only 35% survive) — a 2.2× survival advantage.
+    Without sensing, the agent cannot maintain viability.'
+  evidence:
+    from_test: agency-advantage
+    observed: 2.25
+    units: chemotactic/blind survival
+- id: F-02
+  kind: biological
+  status: confirms
+  statement: "Sense-making: the nutrient gradient is meaningful from the perspective of the precarious
+    identity — chemotactic agents experience 1.33× more food than blind ones. Value (food = viable) is
+    grounded in the cell's own viability, not assigned from outside. This is where life becomes mind."
+  evidence:
+    from_test: sense-making
+    observed: 1.335
+    units: chemotactic/blind nutrient experienced
+
+visualizations:
+- name: trajectories
+  chart: charts/s3_01_trajectories.png
+- name: survival
+  chart: charts/s3_02_survival.png
+- name: landscape
+  chart: charts/s3_03_landscape.png

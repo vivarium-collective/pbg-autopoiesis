@@ -29,6 +29,7 @@ executive:
 studies:
   - study-1-membrane-metabolism-loop
   - study-2-spatial-containment
+  - study-3-adaptive-chemotaxis
 
 acceptance_criteria:
   - study: study-1-membrane-metabolism-loop
@@ -43,3 +44,9 @@ acceptance_criteria:
     behavior: membrane-counters-diffusion
   - study: study-2-spatial-containment
     behavior: spatial-precariousness
+  - study: study-3-adaptive-chemotaxis
+    behavior: chemotaxis-survival
+  - study: study-3-adaptive-chemotaxis
+    behavior: agency-advantage
+  - study: study-3-adaptive-chemotaxis
+    behavior: sense-making

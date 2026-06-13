@@ -2,20 +2,6 @@
 (function () {
   "use strict";
 
-  // Module-level so EVERY render function can call it. It was previously only
-  // defined nested inside the investigation-report builder, but called from
-  // sibling scopes (tick / study-card / v4 renderers) — which threw
-  // "ReferenceError: Can't find variable: _humanizeStudyName" and failed the
-  // investigation report load (fixed 2026-06-10). Hoisted here = visible IIFE-wide.
-  function _humanizeStudyName(slug) {
-    var m = /^([a-z]+-\d+[a-z]*)-(.+)$/.exec(slug);
-    if (!m) return {chip: '', title: String(slug).replace(/-/g, ' ')};
-    var rest = m[2].replace(/-/g, ' ');
-    rest = rest.charAt(0).toUpperCase() + rest.slice(1);
-    if (rest.length > 60) rest = rest.slice(0, 57) + '…';
-    return {chip: m[1], title: rest};
-  }
-
   // -------------------------------------------------------------------------
   // Generic modal helpers
   // -------------------------------------------------------------------------
@@ -48,7 +34,7 @@
   // <summary>, so the native toggle doesn't fire. Manual handler.
   document.addEventListener("click", function (e) {
     var t = e.target;
-    if (t && t.classList && (t.classList.contains("sn-collapse-hint") || t.classList.contains("sp-collapse-hint"))) {
+    if (t && t.classList && t.classList.contains("sn-collapse-hint")) {
       var details = t.closest("details.study-fold");
       if (details) {
         details.open = false;
@@ -62,24 +48,7 @@
     }
   });
 
-  // study-nav marker click -> open the (maybe-collapsed) study card + jump to
-  // the section it points at. Without this, an anchor into a collapsed
-  // <details> does nothing (the target is display:none).
-  document.addEventListener("click", function (e) {
-    var t = e.target;
-    var a = (t && t.closest) ? t.closest(".study-nav a[href^='#']") : null;
-    if (!a) return;
-    var target = document.getElementById(a.getAttribute("href").slice(1));
-    if (!target) return;
-    var fold = target.closest("details.study-fold");
-    if (fold && !fold.open) fold.open = true;
-    e.preventDefault();
-    setTimeout(function () {
-      target.scrollIntoView({behavior: "smooth", block: "start"});
-    }, 0);
-  });
-
-  // Global listener for postMessage events from bigraph-loom iframes.
+  // Global listener for postMessage events from loom-explore iframes.
   window.addEventListener('message', function(ev) {
     if (ev.data && ev.data.type === 'explore:ready') {
       // Mark the source iframe as ready so callers can post immediately.
@@ -93,7 +62,7 @@
       });
     }
     if (ev.data && ev.data.type === 'explore:inspect') {
-      console.log('[bigraph-loom inspect]', ev.data);
+      console.log('[loom-explore inspect]', ev.data);
       // TODO: cross-panel highlighting (out of scope for this task)
     }
     if (ev.data && ev.data.type === 'explore:emit-changed') {
@@ -106,7 +75,7 @@
     }
   });
 
-  // Pop the current bigraph-loom iframe contents into a separate window.
+  // Pop the current loom-explore iframe contents into a separate window.
   // We re-send the last-posted {type:'composite:load', state, metadata} payload
   // once the popup signals explore:ready (with a 2s failsafe re-post).
   function _popoutLoom(iframeId) {
@@ -122,7 +91,7 @@
     // message we re-send after explore:ready still wins for metadata, but the
     // URL gives the popup a synchronous bootstrap value.
     var meta = snapshot.metadata || {};
-    var url = '/bigraph-loom/index.html';
+    var url = '/loom-explore/index.html';
     if (meta.id) {
       url += '?id=' + encodeURIComponent(meta.id);
     }
@@ -308,7 +277,7 @@
 
   function _applyCompositeViewMode() {
     var cfg = window._uiConfig || {};
-    var mode = cfg.composite_view || 'bigraph-loom';
+    var mode = cfg.composite_view || 'loom-explore';
     var iframe = document.getElementById('composite-explore-frame');
     var svgLegacy = document.getElementById('composite-explore-svg-legacy');
     if (!iframe || !svgLegacy) return;
@@ -426,14 +395,6 @@
 
   function _switchPage(pageId) {
     pageId = pageId || 'workspace-inputs';
-    // Snapshot mode: redirect authoring-only tabs to the investigations view.
-    // composite-explore needs live composite resolution (build_core) which is
-    // unavailable in a static bundle → redirect to simulation-setup (composites list).
-    if (document.body.classList.contains('snapshot')) {
-      if (pageId === 'github' || pageId === 'studies') {
-        pageId = 'investigations';
-      }
-    }
     document.querySelectorAll('.page').forEach(function(s) { s.classList.remove('active'); });
     document.querySelectorAll('.menu-link').forEach(function(a) { a.classList.remove('active'); });
     var page = document.getElementById('page-' + pageId);
@@ -449,10 +410,6 @@
         window._registryLoaded = true;
         _loadRegistry(false);
       }
-    }
-    // Analyses page: always refresh from /api/visualization-classes on navigate.
-    if (pageId === 'visualizations') {
-      _loadAnalysesPage();
     }
     if (pageId === 'simulation-setup') {
       _loadComposites();
@@ -486,9 +443,6 @@
     if (pageId === 'investigations') {
       _loadInvestigationSets();
     }
-    if (pageId === 'workspace-inputs') {
-      _loadInputs();
-    }
   }
 
   function _initMenuNav() {
@@ -497,10 +451,7 @@
     var focus = params.get('focus');
     var focusedPage = null;
     if (focus) {
-      var _snapshot = document.body.classList.contains('snapshot');
-      var validPages = _snapshot
-        ? ['workspace-inputs', 'simulation-setup', 'registry', 'investigations', 'simulations', 'visualizations', 'composite-explore']
-        : ['workspace-inputs', 'simulation-setup', 'visualizations', 'registry', 'investigations', 'studies', 'simulations', 'composite-explore', 'github'];
+      var validPages = ['workspace-inputs', 'simulation-setup', 'visualizations', 'registry', 'investigations', 'studies', 'simulations', 'composite-explore', 'github'];
       if (validPages.indexOf(focus) >= 0) {
         document.body.classList.add('focus-mode', 'focus-' + focus);
         _switchPage(focus);
@@ -515,10 +466,7 @@
     if (!focusedPage) {
       function fromHash() {
         var h = (window.location.hash || '').replace(/^#/, '');
-        var _snap = document.body.classList.contains('snapshot');
-        var validPages = _snap
-          ? ['workspace-inputs', 'registry', 'simulation-setup', 'investigations', 'simulations', 'visualizations', 'composite-explore']
-          : ['workspace-inputs', 'registry', 'simulation-setup', 'visualizations', 'investigations', 'studies', 'simulations', 'composite-explore', 'github'];
+        var validPages = ['workspace-inputs', 'registry', 'simulation-setup', 'visualizations', 'investigations', 'studies', 'simulations', 'composite-explore', 'github'];
         _switchPage(validPages.indexOf(h) >= 0 ? h : 'workspace-inputs');
       }
       window.addEventListener('hashchange', fromHash);
@@ -546,469 +494,6 @@
 
   window._switchPage = _switchPage;
   window._initMenuNav = _initMenuNav;
-
-  // -------------------------------------------------------------------------
-  // Inputs tab — investigation-first render from /api/inputs
-  // -------------------------------------------------------------------------
-  // Mirrors the SimulationsDB current-investigation-first layout: the loaded
-  // investigation's owned inputs render at the TOP, then repo-wide / shared
-  // data sources below. Replaces the server-rendered dataset/reference lists
-  // as the single source of truth (the management panels below the container
-  // keep the add/edit actions + bib explorer).
-  function _loadInputs() {
-    var el = document.getElementById('inputs-api-render');
-    if (!el) return;
-    el.innerHTML = '<p class="muted" style="font-style:italic">Loading inputs…</p>';
-    var _slug = window._currentIsetSlug || '';
-    var _p = window.DataSource
-      ? window.DataSource.loadInputs(_slug)
-      : (function() {
-          var _url = '/api/inputs' + (_slug ? ('?investigation=' + encodeURIComponent(_slug)) : '');
-          return fetch(_url).then(function(r) { return r.json(); });
-        })();
-    _p
-      .then(function (data) { _renderInputs(el, data || {}); })
-      .catch(function (err) {
-        el.innerHTML = '<p style="color:#c00">Could not load inputs: ' +
-          _esc(String(err)) +
-          ' <button class="action-btn" onclick="_loadInputs()">Retry</button></p>';
-      });
-  }
-  window._loadInputs = _loadInputs;
-
-  // A reference entry is either a bare bib key (investigation.references) or a
-  // parsed bib-entry dict (global.references). Normalize to a display label.
-  function _inputsRefLabel(ref) {
-    if (ref == null) return '';
-    if (typeof ref === 'string') return ref;
-    return ref.key || ref.bib_key || ref.name || ref.title || JSON.stringify(ref);
-  }
-
-  function _inputsNone() {
-    return '<p class="muted" style="font-style:italic;margin:4px 0">none</p>';
-  }
-
-  // A download link to a workspace-relative path. The server GET-serves any
-  // file under the workspace by its workspace-relative path (do_GET ->
-  // WORKSPACE / rel), so the href is simply '/' + path.
-  function _inputsDownloadLink(path, label) {
-    if (!path) return '';
-    var href = '/' + String(path).replace(/^\/+/, '');
-    return '<a href="' + _esc(href) + '" download class="action-btn" ' +
-      'style="font-size:0.8em;padding:1px 8px;text-decoration:none">⬇ ' +
-      _esc(label || 'Download') + '</a>';
-  }
-
-  // Render a datasets list (name + path + download) as a compact table, or a
-  // "none" line.
-  function _inputsDatasetsHtml(datasets) {
-    if (!datasets || !datasets.length) return _inputsNone();
-    var rows = datasets.map(function (ds) {
-      ds = ds || {};
-      var name = _esc(ds.name || ds.path || '(unnamed)');
-      var path = ds.path || '';
-      var src = ds.path || ds.url || '';
-      var dl = path ? _inputsDownloadLink(path, 'Download') :
-        (ds.url ? '<a href="' + _esc(ds.url) + '" target="_blank" rel="noopener" ' +
-          'class="action-btn" style="font-size:0.8em;padding:1px 8px;text-decoration:none">↗ Source</a>' : '');
-      return '<tr><td><code>' + name + '</code></td><td><small class="muted">' +
-        _esc(src) + '</small></td><td style="text-align:right">' + dl + '</td></tr>';
-    }).join('');
-    return '<table><thead><tr><th>Name</th><th>Source</th><th></th></tr></thead><tbody>' +
-      rows + '</tbody></table>';
-  }
-
-  // Render references as informative cards: title (linked to the paper online),
-  // a muted author/year/journal line, a collapsible BibTeX block with a copy
-  // button, and an optional PDF download. Used for BOTH investigation + global
-  // references. Unmatched bare keys render as a labeled stub.
-  function _inputsRefsHtml(refs) {
-    if (!refs || !refs.length) return _inputsNone();
-    return '<div style="display:flex;flex-direction:column;gap:10px">' +
-      refs.map(_inputsRefCardHtml).join('') + '</div>';
-  }
-
-  function _inputsRefCardHtml(ref) {
-    ref = ref || {};
-    if (typeof ref === 'string') ref = { key: ref, title: ref, _unmatched: true };
-    var key = ref.key || ref.bib_key || '';
-
-    if (ref._unmatched) {
-      return '<div style="border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px">' +
-        '<code>' + _esc(key || _inputsRefLabel(ref)) + '</code> ' +
-        '<small class="muted">(no bib entry)</small></div>';
-    }
-
-    // Many minimal bib entries have only url + note (no title); fall back to
-    // the note (a human description), then the key.
-    var title = ref.title || ref.note || key || '(untitled)';
-    // Link target: explicit url, else doi.org/<doi>.
-    var link = '';
-    if (ref.url) link = ref.url;
-    else if (ref.doi) link = 'https://doi.org/' + ref.doi;
-
-    var titleHtml = link
-      ? '<a href="' + _esc(link) + '" target="_blank" rel="noopener" ' +
-        'style="font-weight:600">' + _esc(title) + '</a> ' +
-        '<small class="muted">↗</small>'
-      : '<strong>' + _esc(title) + '</strong>';
-
-    var metaParts = [];
-    if (ref.author) metaParts.push(_esc(ref.author));
-    if (ref.year) metaParts.push(_esc(ref.year));
-    if (ref.journal) metaParts.push(_esc(ref.journal));
-    var meta = metaParts.length
-      ? '<div class="muted" style="font-size:0.85em;margin-top:2px">' +
-        metaParts.join(' · ') + '</div>'
-      : '';
-
-    var actions = '';
-    if (ref.pdf_path) actions += ' ' + _inputsDownloadLink(ref.pdf_path, 'PDF');
-
-    var bibtex = ref.bibtex || '';
-    var bibBlock = '';
-    if (bibtex) {
-      var bibId = 'bibtex-' + (key || Math.random().toString(36).slice(2));
-      bibBlock = '<details style="margin-top:6px">' +
-        '<summary style="cursor:pointer;font-size:0.82em;color:#475569">BibTeX</summary>' +
-        '<pre id="' + _esc(bibId) + '" style="background:#f8fafc;border:1px solid #e2e8f0;' +
-        'border-radius:4px;padding:8px;font-size:0.78em;overflow:auto;margin:6px 0">' +
-        _esc(bibtex) + '</pre>' +
-        '<button class="action-btn" style="font-size:0.78em;padding:1px 8px" ' +
-        'onclick="_copyBibtex(\'' + _esc(bibId) + '\', this)">Copy BibTeX</button>' +
-        '</details>';
-    }
-
-    // Show the note as a sub-line only when it isn't already the headline.
-    var noteHtml = (ref.note && ref.note !== title)
-      ? '<div class="muted" style="font-size:0.85em;margin-top:2px;font-style:italic">' + _esc(ref.note) + '</div>'
-      : '';
-
-    return '<div style="border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px">' +
-      '<div>' + titleHtml + actions + '</div>' + meta + noteHtml + bibBlock + '</div>';
-  }
-
-  // Copy the text content of a <pre> to the clipboard; flash the button label.
-  function _copyBibtex(preId, btn) {
-    var pre = document.getElementById(preId);
-    if (!pre) return;
-    var text = pre.textContent || '';
-    var done = function () {
-      if (!btn) return;
-      var orig = btn.textContent;
-      btn.textContent = 'Copied!';
-      setTimeout(function () { btn.textContent = orig; }, 1200);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, function () {});
-    } else {
-      try {
-        var ta = document.createElement('textarea');
-        ta.value = text; document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta); done();
-      } catch (e) { /* ignore */ }
-    }
-  }
-  window._copyBibtex = _copyBibtex;
-
-  // Render expert docs (name + optional path + download), or a "none" line.
-  function _inputsExpertDocsHtml(docs) {
-    if (!docs || !docs.length) return _inputsNone();
-    return '<ul style="margin:4px 0 0 0;padding:0;list-style:none;' +
-      'display:flex;flex-direction:column;gap:4px">' +
-      docs.map(function (doc) {
-        doc = doc || {};
-        var name = _esc(doc.name || doc.path || '(unnamed)');
-        var path = doc.path ? ' <small class="muted">' + _esc(doc.path) + '</small>' : '';
-        var dl = doc.path ? ' ' + _inputsDownloadLink(doc.path, 'Download') : '';
-        return '<li><strong>' + name + '</strong>' + path + dl + '</li>';
-      }).join('') + '</ul>';
-  }
-
-  // A small "+ Add" button that launches the investigation-scoped upload flow
-  // for the given category ('dataset' | 'reference' | 'expert').
-  function _inputsAddBtn(category) {
-    return '<button class="action-btn js-authoring" style="font-size:0.78em;padding:1px 8px;' +
-      'font-weight:normal" onclick="_inputsAdd(\'' + category + '\')">+ Add</button>';
-  }
-
-  // Read a File object to pure base64 (sans data: prefix) and invoke cb.
-  function _inputsReadFileB64(file, cb) {
-    var reader = new FileReader();
-    reader.onload = function (ev) {
-      var dataUrl = ev.target.result;
-      var comma = dataUrl.indexOf(',');
-      cb(comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl);
-    };
-    reader.readAsDataURL(file);
-  }
-
-  // POST an investigation-scoped input upload, then refresh the page.
-  function _inputsPost(endpoint, body) {
-    body = body || {};
-    var slug = window._currentIsetSlug || '';
-    if (slug) body.investigation = slug;
-    fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    })
-      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-      .then(function (res) {
-        if (!res.ok || (res.d && res.d.error)) {
-          alert('Upload failed: ' + ((res.d && res.d.error) || 'unknown error'));
-          return;
-        }
-        if (typeof _loadInputs === 'function') _loadInputs();
-      })
-      .catch(function (err) { alert('Upload failed: ' + String(err)); });
-  }
-
-  // Hidden file picker -> base64 -> cb({file_b64, filename}).
-  function _inputsPickFile(cb) {
-    var inp = document.createElement('input');
-    inp.type = 'file';
-    inp.style.display = 'none';
-    inp.onchange = function () {
-      if (inp.files && inp.files[0]) {
-        var f = inp.files[0];
-        _inputsReadFileB64(f, function (b64) { cb({ file_b64: b64, filename: f.name }); });
-      }
-      setTimeout(function () { if (inp.parentNode) inp.parentNode.removeChild(inp); }, 0);
-    };
-    document.body.appendChild(inp);
-    inp.click();
-  }
-
-  // Entry point for the "+ Add" buttons on the investigation inputs panel.
-  function _inputsAdd(category) {
-    var slug = window._currentIsetSlug || '';
-    if (!slug) { alert('No investigation loaded.'); return; }
-
-    if (category === 'dataset') {
-      var dsName = window.prompt('Dataset name?');
-      if (!dsName) return;
-      _inputsPickFile(function (picked) {
-        _inputsPost('/api/dataset', {
-          name: dsName, filename: picked.filename, file_b64: picked.file_b64
-        });
-      });
-      return;
-    }
-
-    if (category === 'expert') {
-      var edName = window.prompt('Expert-doc name?');
-      if (!edName) return;
-      _inputsPickFile(function (picked) {
-        _inputsPost('/api/expert-doc', {
-          name: edName, filename: picked.filename, file_b64: picked.file_b64
-        });
-      });
-      return;
-    }
-
-    if (category === 'reference') {
-      // PDF drop-and-go, or BibTeX paste.
-      var mode = window.prompt(
-        'Add reference — type "pdf" to upload a PDF, or "bibtex" to paste BibTeX:',
-        'bibtex');
-      if (mode == null) return;
-      mode = mode.trim().toLowerCase();
-      if (mode === 'pdf') {
-        _inputsPickFile(function (picked) {
-          _inputsPost('/api/reference-pdf', { pdf_b64: picked.file_b64 });
-        });
-      } else if (mode === 'bibtex') {
-        var bib = window.prompt('Paste a BibTeX entry:');
-        if (!bib || !bib.trim()) return;
-        _inputsPost('/api/reference-bibtex', { bibtex_text: bib.trim() });
-      }
-      return;
-    }
-  }
-  window._inputsAdd = _inputsAdd;
-
-  function _renderInputs(el, data) {
-    var inv = data.investigation || {};
-    var glob = data.global || {};
-    var current = data.current || null;
-
-    var html = '';
-
-    // --- This investigation's inputs (top) ---
-    var invHeading = 'This investigation’s sources';
-    if (current) invHeading += ' — ' + _esc(current);
-    html += '<div class="panel">';
-    html += '<h3>' + invHeading + '</h3>';
-    if (!current) {
-      html += '<p class="muted" style="font-style:italic">No investigation loaded.</p>';
-    } else {
-      if (inv._repo_fallback) {
-        html += '<p class="muted" style="font-style:italic;font-size:0.85em">' +
-          'migrating: showing repo-level inputs</p>';
-      }
-      html += '<h4 style="margin:12px 0 4px">Datasets ' +
-        _inputsAddBtn('dataset') + '</h4>' +
-        _inputsDatasetsHtml(inv.datasets);
-      html += '<h4 style="margin:12px 0 4px">References ' +
-        _inputsAddBtn('reference') + '</h4>' +
-        _inputsRefsHtml(inv.references);
-      html += '<h4 style="margin:12px 0 4px">Expert docs ' +
-        _inputsAddBtn('expert') + '</h4>' +
-        _inputsExpertDocsHtml(inv.expert_docs);
-    }
-    html += '</div>';
-
-    // --- Repo-wide data sources (below) ---
-    html += '<div class="panel">';
-    html += '<h3>Repo-wide data sources</h3>';
-    // Data-source bundle (workspace.yaml dashboard.data_sources provider).
-    // Populated asynchronously; the host is hidden until sources arrive so
-    // workspaces without a provider see no extra UI. Rendered FIRST (above the
-    // shared datasets/references) as the primary repo-wide source.
-    html += '<div id="data-sources-host" style="display:none;margin-bottom:16px"></div>';
-    html += '<h4 style="margin:12px 0 4px">Datasets</h4>' +
-      _inputsDatasetsHtml(glob.datasets);
-    html += '<h4 style="margin:12px 0 4px">References</h4>' +
-      _inputsRefsHtml(glob.references);
-    html += '</div>';
-
-    el.innerHTML = html;
-
-    _loadDataSources();
-  }
-
-  // -------------------------------------------------------------------------
-  // Repo-wide data sources — provider-backed bundle (workspace.yaml hook).
-  // Grouped-by-category, searchable list with click-to-open file preview.
-  // -------------------------------------------------------------------------
-  var _dataSourcesCache = null;  // [{key, path, category, kind, size_bytes}]
-
-  function _fmtBytes(n) {
-    n = Number(n) || 0;
-    if (n < 1024) return n + ' B';
-    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-    return (n / 1024 / 1024).toFixed(2) + ' MB';
-  }
-
-  function _loadDataSources() {
-    var host = document.getElementById('data-sources-host');
-    if (!host) return;
-    var _p = window.DataSource
-      ? window.DataSource.loadDataSources()
-      : fetch('/api/data-sources').then(function(r) { return r.json(); });
-    _p
-      .then(function(j) {
-        var sources = (j && j.sources) || [];
-        if (!sources.length) {
-          host.style.display = 'none';
-          return;
-        }
-        _dataSourcesCache = sources;
-        host.style.display = 'block';
-        _renderDataSources(host, j.label || 'data sources', sources, j.error);
-      })
-      .catch(function() { host.style.display = 'none'; });
-  }
-
-  function _renderDataSources(host, label, sources, error) {
-    var n = sources.length;
-    var nOv = sources.filter(function(s) { return s.kind === 'override'; }).length;
-    var h = '';
-    h += '<h4 style="margin:12px 0 4px">' + _esc(label) +
-      ' <span class="muted" style="font-weight:normal">(' + n + ' files' +
-      (nOv ? ', ' + nOv + ' override' + (nOv === 1 ? '' : 's') : '') + ')</span></h4>';
-    if (error) {
-      h += '<p class="muted" style="font-style:italic;font-size:0.85em">' +
-        'provider error: ' + _esc(error) + '</p>';
-    }
-    h += '<input type="text" id="ds-filter" placeholder="Filter by key…" ' +
-      'oninput="_filterDataSources(this.value)" ' +
-      'style="width:100%;box-sizing:border-box;padding:6px 8px;margin:4px 0 8px;' +
-      'border:1px solid #d1d5db;border-radius:6px;font-size:0.85em">';
-    h += '<div id="ds-list"></div>';
-    host.innerHTML = h;
-    _filterDataSources('');
-  }
-
-  function _filterDataSources(q) {
-    var listEl = document.getElementById('ds-list');
-    if (!listEl || !_dataSourcesCache) return;
-    q = (q || '').toLowerCase().trim();
-    var matched = _dataSourcesCache.filter(function(s) {
-      return !q || s.key.toLowerCase().indexOf(q) !== -1;
-    });
-
-    // Group by category.
-    var groups = {};
-    matched.forEach(function(s) {
-      (groups[s.category] = groups[s.category] || []).push(s);
-    });
-    var cats = Object.keys(groups).sort();
-    if (!cats.length) {
-      listEl.innerHTML = '<p class="muted" style="font-size:0.85em">No matching files.</p>';
-      return;
-    }
-
-    var html = '';
-    cats.forEach(function(cat) {
-      var items = groups[cat];
-      html += '<details ' + (q ? 'open' : '') + ' style="margin-bottom:6px">';
-      html += '<summary style="cursor:pointer;font-weight:600;font-size:0.85em;' +
-        'padding:4px 0;color:#374151">' + _esc(cat) +
-        ' <span class="muted" style="font-weight:normal">(' + items.length + ')</span></summary>';
-      html += '<div style="margin:2px 0 6px 8px">';
-      items.forEach(function(s) {
-        var badgeColor = s.kind === 'override' ? '#9333ea' : '#6b7280';
-        var badgeBg = s.kind === 'override' ? '#f3e8ff' : '#f3f4f6';
-        html += '<div style="display:flex;align-items:center;gap:8px;padding:3px 0;' +
-          'border-bottom:1px solid #f3f4f6;font-size:0.82em">';
-        html += '<code style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" ' +
-          'title="' + _esc(s.key) + '">' + _esc(s.key) + '</code>';
-        html += '<span style="flex:none;font-size:0.72em;font-weight:700;padding:1px 6px;' +
-          'border-radius:9999px;color:' + badgeColor + ';background:' + badgeBg + '">' +
-          _esc(s.kind) + '</span>';
-        html += '<span class="muted" style="flex:none;width:64px;text-align:right">' +
-          _fmtBytes(s.size_bytes) + '</span>';
-        html += '<button class="action-btn" style="flex:none;padding:1px 8px;font-size:0.85em" ' +
-          'onclick="_openDataSourceFile(\'' + _esc(s.key).replace(/'/g, "\\'") + '\')">Open</button>';
-        html += '</div>';
-      });
-      html += '</div></details>';
-    });
-    listEl.innerHTML = html;
-  }
-  window._filterDataSources = _filterDataSources;
-
-  function _openDataSourceFile(key) {
-    var url = '/api/data-source-file?key=' + encodeURIComponent(key);
-    var titleEl = document.getElementById('ds-preview-title');
-    var bodyEl = document.getElementById('ds-preview-body');
-    var dlEl = document.getElementById('ds-preview-download');
-    if (titleEl) titleEl.textContent = key;
-    if (dlEl) dlEl.setAttribute('href', url);
-    if (bodyEl) bodyEl.textContent = 'Loading…';
-    openModal('modal-ds-preview');
-    fetch(url)
-      .then(function(r) {
-        var ct = r.headers.get('Content-Type') || '';
-        if (ct.indexOf('text/') === 0 || ct.indexOf('json') !== -1 ||
-            ct.indexOf('yaml') !== -1 || ct.indexOf('csv') !== -1 ||
-            ct.indexOf('tab-separated') !== -1) {
-          return r.text().then(function(t) {
-            if (bodyEl) bodyEl.textContent = t;
-          });
-        }
-        if (bodyEl) {
-          bodyEl.textContent =
-            '(binary file — use Download to save it)';
-        }
-      })
-      .catch(function(e) {
-        if (bodyEl) bodyEl.textContent = 'Error loading file: ' + e;
-      });
-  }
-  window._openDataSourceFile = _openDataSourceFile;
 
   // -------------------------------------------------------------------------
   // Registry tab (v0.3.6)
@@ -1044,29 +529,6 @@
     });
   }
 
-  // Coerce a value to an Array. Use everywhere a YAML/JSON field is
-  // SUPPOSED to be a list but a caller might supply a dict (e.g. a
-  // grouped/nested shape). Prevents
-  //   "(x || []).map is not a function"
-  // class of bugs from crashing report generation. Logs a single warning
-  // per (label, type) so we notice schema drift without spamming the
-  // console. Returns []; the caller's report degrades gracefully (empty
-  // section) instead of throwing.
-  var _asListWarned = new Set();
-  function _asList(value, label) {
-    if (Array.isArray(value)) return value;
-    if (value === null || value === undefined) return [];
-    var type = (typeof value === 'object') ? 'object' : (typeof value);
-    var key = (label || '?') + ':' + type;
-    if (!_asListWarned.has(key)) {
-      _asListWarned.add(key);
-      console.warn('[walkthrough] expected array for ' + (label || '<unlabeled field>') +
-                   ', got ' + type + ' — degrading to empty list. ' +
-                   'Check the workspace yaml schema.');
-    }
-    return [];
-  }
-
   function _filterVizCatalog(query) {
     var rows = document.querySelectorAll('#viz-picker-container .picker-row');
     var q = (query || '').toLowerCase().trim();
@@ -1077,81 +539,6 @@
     });
   }
   window._filterVizCatalog = _filterVizCatalog;
-
-  // -------------------------------------------------------------------------
-  // Analyses page: fetch /api/visualization-classes and render two groups —
-  // "Analyses" (kind === "analysis") and "Visualizations" (kind === "visualization").
-  // -------------------------------------------------------------------------
-
-  function _renderAnalysesGroups(classes, container) {
-    if (!classes || classes.length === 0) {
-      container.innerHTML = '<p class="empty-state">No classes found. Install a pbg-* package or a v2ecoli workspace to populate this page.</p>';
-      return;
-    }
-    var analyses = classes.filter(function(c) { return c.kind === 'analysis'; });
-    var vizzes   = classes.filter(function(c) { return c.kind !== 'analysis'; });
-
-    function _renderClassCard(c) {
-      var previewBtn = (c.kind !== 'analysis')
-        ? '<button class="btn-mini js-authoring" onclick="_vizClassPreview(\'' + _esc(c.address) + '\',\'' + _esc(c.name) + '\')">Preview</button>'
-        : '';
-      return '<div class="picker-row" data-kind="' + _esc(c.kind || 'visualization') + '">' +
-        '<div class="picker-row-main">' +
-          '<strong>' + _esc(c.name) + '</strong>' +
-          ' <code class="muted" style="font-size:0.82em">' + _esc(c.address) + '</code>' +
-          (c.doc ? '<br><span class="muted" style="font-size:0.85em">' + _esc(c.doc) + '</span>' : '') +
-        '</div>' +
-        '<div class="picker-row-actions">' +
-          previewBtn +
-          (c.kind !== 'analysis'
-            ? '<button class="btn-mini js-authoring" onclick="_useRegistryClass(\'visualization\', \'' + _esc(c.name) + '\')">Use</button>'
-            : '') +
-        '</div>' +
-      '</div>';
-    }
-
-    var html = '';
-
-    // ── Analyses group ───────────────────────────────────────────────────────
-    html += '<div class="analyses-group" style="margin-bottom:20px">' +
-      '<h4 style="margin:0 0 8px;font-size:0.95em;text-transform:uppercase;letter-spacing:0.06em;color:#374151">Analyses' +
-      ' <span class="count-badge" style="font-size:0.8em">' + analyses.length + '</span></h4>';
-    if (analyses.length === 0) {
-      html += '<p class="empty-state muted" style="margin:0">No Analysis classes found. v2ecoli must be installed in this workspace\'s environment.</p>';
-    } else {
-      html += analyses.map(_renderClassCard).join('');
-    }
-    html += '</div>';
-
-    // ── Visualizations group ─────────────────────────────────────────────────
-    html += '<div class="analyses-group">' +
-      '<h4 style="margin:0 0 8px;font-size:0.95em;text-transform:uppercase;letter-spacing:0.06em;color:#374151">Visualizations' +
-      ' <span class="count-badge" style="font-size:0.8em">' + vizzes.length + '</span></h4>';
-    if (vizzes.length === 0) {
-      html += '<p class="empty-state muted" style="margin:0">No Visualization classes found. Install a pbg-* package that provides one (Registry tab &rarr; Available modules).</p>';
-    } else {
-      html += vizzes.map(_renderClassCard).join('');
-    }
-    html += '</div>';
-
-    container.innerHTML = html;
-  }
-
-  function _loadAnalysesPage() {
-    var container = document.getElementById('viz-picker-container');
-    var countEl   = document.getElementById('viz-count');
-    if (!container) return;
-    window.DataSource.loadVisualizationClasses()
-      .then(function(data) {
-        var classes = (data && data.classes) || [];
-        _renderAnalysesGroups(classes, container);
-        if (countEl) countEl.textContent = '(' + classes.length + ')';
-      })
-      .catch(function(err) {
-        container.innerHTML = '<p class="empty-state" style="color:#991b1b">Error loading classes: ' + _esc(String(err)) + '</p>';
-      });
-  }
-  window._loadAnalysesPage = _loadAnalysesPage;
 
   // Source-rank for picker sort: in_workspace classes are the ones the user
   // can act on directly (they live in this workspace's package or an
@@ -1181,7 +568,7 @@
         schemaSnippet = '<details><summary class="muted" style="cursor:pointer;font-size:0.85em">config_schema</summary><code class="registry-schema">' + _esc(it.schema_preview) + '</code></details>';
       }
       var previewBtn = (kind === 'visualization')
-        ? '<button class="btn-mini js-authoring" onclick="_vizClassPreview(\'' + _esc(it.address) + '\',\'' + _esc(it.name) + '\')">Preview</button>'
+        ? '<button class="btn-mini" onclick="_vizClassPreview(\'' + _esc(it.address) + '\',\'' + _esc(it.name) + '\')">Preview</button>'
         : '';
       // Section divider when source group changes. Lightweight — keeps the
       // sort intent visible without committing to a full grouped-list layout.
@@ -1204,7 +591,7 @@
         '</div>' +
         '<div class="picker-row-actions">' +
           previewBtn +
-          '<button class="btn-mini js-authoring" onclick="_useRegistryClass(\'' + kind + '\', \'' + _esc(it.name) + '\')">Use</button>' +
+          '<button class="btn-mini" onclick="_useRegistryClass(\'' + kind + '\', \'' + _esc(it.name) + '\')">Use</button>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -1375,10 +762,8 @@
   function _loadRegistry(refresh) {
     var status = document.getElementById('registry-status');
     if (status) status.textContent = 'Loading…';
-    var _p = window.DataSource
-      ? window.DataSource.loadRegistry(refresh)
-      : fetch('/api/registry' + (refresh ? '?refresh=1' : '')).then(function(r) { return r.json(); });
-    _p
+    fetch('/api/registry' + (refresh ? '?refresh=1' : ''))
+      .then(function(r) { return r.json(); })
       .then(function(data) {
         if (status) {
           if (data.error) {
@@ -1452,9 +837,11 @@
           }
         }
 
-        // Note: the Analyses page (viz-picker-container) is now populated by
-        // _loadAnalysesPage() (called from _switchPage), which fetches
-        // /api/visualization-classes and renders two groups (Analyses + Visualizations).
+        // Populate visualization picker (Visualizations tab).
+        var vizContainer = document.getElementById('viz-picker-container');
+        if (vizContainer) _renderKindPicker(byKind.visualization, vizContainer, 'visualization');
+        var vizCount = document.getElementById('viz-count');
+        if (vizCount) vizCount.textContent = '(' + byKind.visualization.length + ')';
       })
       .catch(function(err) {
         if (status) status.innerHTML = '<span style="color:#991b1b">Network error: ' + err + '</span>';
@@ -1609,7 +996,6 @@
       return '';
     }
 
-    var _isSnapshot = document.body.classList.contains('snapshot');
     if (window._compositesView === 'list') {
       container.className = 'composite-list';
       var prevC = null;
@@ -1619,15 +1005,12 @@
         }).join('');
         var divider = _maybeDivider(prevC, c);
         prevC = c;
-        var exploreBtn = (_isSnapshot && !c.has_wiring)
-          ? ''
-          : '<button class="action-btn" onclick="_openCompositeExplorer(\'' + _esc(c.id) + '\')">Explore</button>';
         return divider + '<div class="composite-list-row">' +
           '<span class="name">' + _esc(c.name) + ' ' + _wsTag(c) + '</span>' +
           '<span class="desc">' + tagPills + ' ' + _esc(c.description || '(no description)') +
             _moduleLine(c) +
           '</span>' +
-          '<span>' + exploreBtn + '</span>' +
+          '<span><button class="action-btn" onclick="_openCompositeExplorer(\'' + _esc(c.id) + '\')">Explore</button></span>' +
           '</div>';
       });
       container.innerHTML = rows.join('');
@@ -1657,9 +1040,6 @@
         }
         var divider = _maybeDivider(prevG, c);
         prevG = c;
-        var exploreBtn = (_isSnapshot && !c.has_wiring)
-          ? ''
-          : '<button class="action-btn" onclick="_openCompositeExplorer(\'' + _esc(c.id) + '\')">Explore</button>';
         return divider + '<div class="module-card' + (c.workspace_local ? ' module-card-workspace' : '') + '">' +
           '<div class="module-card-header"><strong>' + _esc(c.name) + '</strong> ' + _wsTag(c) + '</div>' +
           '<p class="module-desc">' + _esc(c.description || '(no description)') + '</p>' +
@@ -1668,7 +1048,7 @@
           tagSummary +
           paramSummary +
           '<div class="module-action">' +
-            exploreBtn +
+            '<button class="action-btn" onclick="_openCompositeExplorer(\'' + _esc(c.id) + '\')">Explore</button>' +
           '</div>' +
         '</div>';
       });
@@ -1678,10 +1058,8 @@
   window._renderComposites = _renderComposites;
 
   function _loadComposites() {
-    var _p = window.DataSource
-      ? window.DataSource.loadComposites()
-      : fetch('/api/composites').then(function(r) { return r.json(); });
-    _p
+    fetch('/api/composites')
+      .then(function(r) { return r.json(); })
       .then(function(data) {
         var container = document.getElementById('composite-cards');
         var countBadge = document.getElementById('composite-count');
@@ -1798,7 +1176,6 @@
   function _buildCatalogChips() {
     var chipsEl = document.getElementById('catalog-tag-chips');
     if (!chipsEl) return;
-    chipsEl.innerHTML = ''; return; // tag filter chips hidden
     var allTags = [];
     window._catalogModules.forEach(function(m) {
       (m.tags || []).forEach(function(t) {
@@ -1928,7 +1305,7 @@
             // Workspace.yaml doesn't declare it and no installed dep requires
             // it. User can uninstall directly from the dashboard.
             srcBadge = '<span class="install-src-pill install-src-unmanaged" title="Installed in the venv but not declared in workspace.yaml.imports and not required by any installed package. Safe to uninstall.">📦 unmanaged</span>';
-            action = '<button class="action-btn action-btn--secondary js-authoring" onclick="_uninstallFromCatalog(\'' + _esc(m.name) + '\')">Uninstall</button>';
+            action = '<button class="action-btn action-btn--secondary" onclick="_uninstallFromCatalog(\'' + _esc(m.name) + '\')">Uninstall</button>';
           } else {
             var viaText = 'via ' + via.slice(0, 3).map(_esc).join(', ') + (via.length > 3 ? ' +' + (via.length - 3) : '');
             srcBadge = '<span class="install-src-pill install-src-venv" title="Brought in by another installed package; cannot be uninstalled directly.">📦 ' + viaText + '</span>';
@@ -1936,14 +1313,14 @@
           }
         } else if (src === 'pyproject') {
           srcBadge = '<span class="install-src-pill install-src-pyproject" title="Declared in pyproject.toml [project.dependencies]; workspace.yaml.imports does not have an explicit entry.">📋 via pyproject</span>';
-          action = '<button class="action-btn action-btn--secondary js-authoring" onclick="_uninstallFromCatalog(\'' + _esc(m.name) + '\')">Uninstall</button>';
+          action = '<button class="action-btn action-btn--secondary" onclick="_uninstallFromCatalog(\'' + _esc(m.name) + '\')">Uninstall</button>';
         } else {
           srcBadge = '<span class="status-pill installed">installed</span>';
-          action = '<button class="action-btn action-btn--secondary js-authoring" onclick="_uninstallFromCatalog(\'' + _esc(m.name) + '\')">Uninstall</button>';
+          action = '<button class="action-btn action-btn--secondary" onclick="_uninstallFromCatalog(\'' + _esc(m.name) + '\')">Uninstall</button>';
         }
         return srcBadge + ' ' + action;
       }
-      return '<button class="action-btn js-authoring" onclick="_installFromCatalog(\'' + _esc(m.name) + '\')">Install</button>';
+      return '<button class="action-btn" onclick="_installFromCatalog(\'' + _esc(m.name) + '\')">Install</button>';
     }
 
     // Section divider injected at boundaries: workspace → installed →
@@ -1966,7 +1343,9 @@
       var rows = modules.map(function(m) {
         var divider = _maybeSectionDivider(prevL, m);
         prevL = m;
-        var tagPills = ''; // tag pills hidden
+        var tagPills = (m.tags || []).map(function(t) {
+          return '<span class="tag-pill">' + _esc(t) + '</span>';
+        }).join('');
         return divider + '<div class="module-list-row' + (m.kind === 'workspace' ? ' module-row-workspace' : '') + '">' +
           '<span class="name">' + _esc(m.name) + '</span>' +
           '<span class="desc">' + tagPills + ' ' + _esc(m.description || '') + _installedMeta(m) + '</span>' +
@@ -1980,7 +1359,9 @@
       var cards = modules.map(function(m) {
         var divider = _maybeSectionDivider(prevG, m);
         prevG = m;
-        var tags = ''; // tag pills hidden
+        var tags = (m.tags || []).map(function(t) {
+          return '<span class="tag-pill">' + _esc(t) + '</span>';
+        }).join(' ');
         var homepage = m.homepage
           ? '<a href="' + _esc(m.homepage) + '" target="_blank" class="module-link">GitHub &#8599;</a>'
           : '';
@@ -2156,10 +1537,8 @@
   window._checkSystemDepsForInstalled = _checkSystemDepsForInstalled;
 
   function _loadCatalog() {
-    var _p = window.DataSource
-      ? window.DataSource.loadCatalog()
-      : fetch('/api/catalog').then(function(r) { return r.json(); });
-    _p
+    fetch('/api/catalog')
+      .then(function(r) { return r.json(); })
       .then(function(data) {
         var grid = document.getElementById('catalog-modules-grid');
         if (!grid) return;
@@ -2545,7 +1924,7 @@
     var existing = document.getElementById('ws-dirty-panel');
     if (existing) existing.remove();
     if (!d || !d.files || d.files.length === 0) return;
-    var anchor = document.getElementById('viv-content');
+    var anchor = document.getElementById('viv-topbar-actions');
     if (!anchor) return;
     var div = document.createElement('div');
     div.id = 'ws-dirty-panel';
@@ -2561,7 +1940,7 @@
         '<button class="ws-btn" onclick="_refreshGitStatus(); _toggleDirtyPanel()">Refresh</button> ' +
         '<button class="ws-btn" onclick="_toggleDirtyPanel()">Close</button>' +
       '</div>';
-    anchor.insertAdjacentElement('beforebegin', div);
+    anchor.insertAdjacentElement('afterend', div);
   }
 
   function _commitDirtyAll() {
@@ -2893,27 +2272,6 @@
   window._dropZoneStore = _dropZoneStore;
 
   document.addEventListener("DOMContentLoaded", function () {
-    // Snapshot read-only mode: set body.snapshot so CSS hides authoring controls.
-    var _dashCfg = window.__DASH_CONFIG__ || {};
-    if (_dashCfg.mode === "snapshot") {
-      document.body.classList.add("snapshot");
-      // Wire the snapshot banner interactive link (hide if no interactiveUrl configured).
-      var bannerLink = document.getElementById('snapshot-interactive-link');
-      if (bannerLink) {
-        var iurl = _dashCfg.interactiveUrl || '';
-        if (iurl) {
-          bannerLink.href = iurl;
-        } else {
-          bannerLink.style.display = 'none';
-        }
-      }
-      // Show repo-name label from config (Task 5).
-      var repoLabel = document.getElementById('snapshot-repo-label');
-      if (repoLabel && _dashCfg.repo) {
-        repoLabel.textContent = _dashCfg.repo.replace(/^.*\/([^/]+?)(?:\.git)?$/, '$1');
-      }
-    }
-
     // Initialize menu navigation.
     _initMenuNav();
 
@@ -2964,10 +2322,7 @@
     // workspaces with no investigation.yaml files.
     var hasIsetUI = (typeof _renderRailInvestigationGroups === 'function')
                  && document.getElementById('investigations-list');
-    var p1 = (window.DataSource
-      ? window.DataSource.loadInvestigationsFlat()
-      : fetch('/api/investigations').then(function(r) { return r.json(); })
-    ).catch(function() { return {investigations: []}; });
+    var p1 = fetch('/api/investigations').then(function(r) { return r.json(); }).catch(function() { return {investigations: []}; });
     var p2 = hasIsetUI
       ? fetch('/api/iset-list').then(function(r) { return r.json(); }).catch(function() { return {investigations: []}; })
       : Promise.resolve({investigations: []});
@@ -3733,19 +3088,11 @@
   window._ceSnapshotToInitial = _ceSnapshotToInitial;
 
   function _ceFetch() {
-    var id = window._ceCurrent.id;
-    var isSnapshot = document.body.classList.contains('snapshot');
-    var p;
-    if (isSnapshot) {
-      // Snapshot mode: load pre-built state from static bundle via DataSource.
-      p = window.DataSource.loadCompositeResolve(id);
-    } else {
-      // Live mode: fetch resolve endpoint with overrides.
-      var url = '/api/composite-resolve?id=' + encodeURIComponent(id) +
-        '&overrides=' + encodeURIComponent(JSON.stringify(window._ceCurrent.overrides));
-      p = fetch(url).then(function(r) { return r.json(); });
-    }
-    p.then(function(data) {
+    var url = '/api/composite-resolve?id=' + encodeURIComponent(window._ceCurrent.id) +
+      '&overrides=' + encodeURIComponent(JSON.stringify(window._ceCurrent.overrides));
+    fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
         if (data.error) {
           document.getElementById('ce-loading').innerHTML =
             '<span style="color:#c00">Error: ' + _esc(data.error) + '</span>';
@@ -3776,7 +3123,7 @@
         if (stepsInput) {
           stepsInput.value = (data.default_n_steps != null) ? data.default_n_steps : 5;
         }
-        // Send wiring state to bigraph-loom iframe via postMessage
+        // Send wiring state to loom-explore iframe via postMessage
         // "library" = the package the composite ships in; data.module is the
         // submodule path (e.g. "pbg_biomodels.composites") — drop the
         // conventional .composites suffix to get the library name.
@@ -3798,11 +3145,8 @@
         if (stateJsonEl) stateJsonEl.textContent = JSON.stringify(data.state, null, 2);
       })
       .catch(function(err) {
-        var msg = document.body.classList.contains('snapshot')
-          ? 'Wiring snapshot not available for this composite in the read-only view.'
-          : 'Network error: ' + _esc(String(err));
         document.getElementById('ce-loading').innerHTML =
-          '<span style="color:#c00">' + msg + '</span>';
+          '<span style="color:#c00">Network error: ' + _esc(String(err)) + '</span>';
       });
   }
 
@@ -3824,7 +3168,7 @@
       });
   }
 
-  // _loadCompositeExplorer: send composite state to the bigraph-loom iframe.
+  // _loadCompositeExplorer: send composite state to the loom-explore iframe.
   // Can be called with a pre-resolved state object (from _ceFetch) or with
   // just a ref string, in which case it fetches /api/composite-state first.
   // When ui.composite_view === 'bigraph-viz', uses the legacy SVG path instead.
@@ -3834,26 +3178,13 @@
     _applyCompositeViewMode();
 
     var cfg = window._uiConfig || {};
-    if ((cfg.composite_view || 'bigraph-loom') === 'bigraph-viz') {
+    if ((cfg.composite_view || 'loom-explore') === 'bigraph-viz') {
       _legacyLoadCompositeSvg(ref);
       return;
     }
 
     var iframe = document.getElementById('composite-explore-frame');
     if (!iframe) return;
-
-    // Snapshot mode: set iframe src to ?static=1&stateUrl= (read-only loom view).
-    // bigraph-loom fetches the stateUrl and renders it in View-only mode.
-    // basePath is non-empty when the bundle is hosted at a URL subpath (e.g.
-    // GitHub Pages project sites).  Prefix both the loom entry point and the
-    // stateUrl so all paths resolve under the configured subpath.
-    if (document.body.classList.contains('snapshot')) {
-      var _snapshotBase = (window.__DASH_CONFIG__ && window.__DASH_CONFIG__.basePath) || "";
-      var stateUrl = _snapshotBase + '/api/composite-state/' + encodeURIComponent(ref) + '.json';
-      iframe.src = _snapshotBase + '/bigraph-loom/index.html?static=1&stateUrl=' + encodeURIComponent(stateUrl);
-      iframe.style.display = '';
-      return;
-    }
 
     function _postState(state, name) {
       var payload = {
@@ -3890,8 +3221,9 @@
       // Caller already has the resolved state (e.g. from _ceFetch via composite-resolve)
       _postState(stateObj, nameHint || ref);
     } else {
-      // Fetch state independently via DataSource (snapshot → /api/composite-state/<id>.json; live → /api/composite-resolve)
-      window.DataSource.loadCompositeResolve(ref)
+      // Fetch state independently via /api/composite-state
+      fetch('/api/composite-state?ref=' + encodeURIComponent(ref))
+        .then(function(r) { return r.json(); })
         .then(function(data) {
           if (data.error) {
             console.error('composite-state error:', data.error);
@@ -4145,13 +3477,11 @@
   window._investigationsView = 'grid';
 
   function _loadInvestigations() {
-    var _p = window.DataSource
-      ? window.DataSource.loadInvestigationsFlat()
-      : fetch('/api/investigations').then(function(r) {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          return r.json();
-        });
-    _p
+    fetch('/api/investigations')
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
       .then(function(data) {
         window._investigations = data.investigations || [];
         _buildInvestigationTagChips();
@@ -4179,32 +3509,49 @@
   function _loadInvestigationSets() {
     var list = document.getElementById('investigations-list');
     if (list) list.innerHTML = '<p class="empty-state">Loading…</p>';
-    var _p = window.DataSource
-      ? window.DataSource.loadIsetList()
-      : fetch('/api/iset-list', {headers: {Accept: 'application/json'}})
-          .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
-    _p
+    fetch('/api/iset-list', {headers: {Accept: 'application/json'}})
+      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function(j) {
         window._isetIndex = j.investigations || [];
         _renderInvestigationSets();
         _renderRailInvestigationGroups();
+        // New behavior: skip the list-of-cards UI. Auto-open the active
+        // investigation directly. Pick from (in order): the currently-open
+        // iset (refresh case), the iset matching the current branch when
+        // the branch follows `investigation/<name>`, or just the first iset.
         if (!window._isetIndex.length) return;
-        // LIST-FIRST UX: show the cards and let the user pick. Auto-open only
-        // when (a) a detail is already open (refresh/deep-link), or (b) there
-        // is exactly one investigation (a one-item list is pointless).
-        var switchBtn = document.getElementById('investigation-switch-btn');
-        if (switchBtn) switchBtn.style.display = window._isetIndex.length > 1 ? '' : 'none';
-        // List-first: clicking the Investigations menu always returns to the
-        // card list. Auto-open only when there is exactly one investigation;
-        // cards (and deep-links) open a detail explicitly via _openInvestigationDetail.
-        var cur = (window._isetIndex || []).filter(function(i){return i.current;})[0];
-        if (cur) {
-          _openInvestigationDetail(cur.name);
-        } else if (window._isetIndex.length === 1) {
-          _openInvestigationDetail(window._isetIndex[0].name);
-        } else {
-          _showInvestigationList();
+        var active = window._currentIset;
+        if (!active) {
+          // Prefer the slug published by investigation-switcher.js from
+          // /api/investigation-registry — it already does the git-branch
+          // match + running-iset + alphabetical-fallback chain, and
+          // staying consistent with it keeps trigger label + STUDIES
+          // rail + Investigation-tab detail all pointing at the same
+          // iset.
+          var pubSlug = window._currentIsetSlug || '';
+          if (pubSlug) {
+            for (var pi = 0; pi < window._isetIndex.length; pi++) {
+              if (window._isetIndex[pi].name === pubSlug) { active = pubSlug; break; }
+            }
+          }
         }
+        if (!active) {
+          // Legacy fallback: investigation/<name> branch prefix.
+          var branch = (window._gitStatus && window._gitStatus.active_branch) || '';
+          var m = /^investigation\/(.+)$/.exec(branch);
+          if (m) {
+            for (var i = 0; i < window._isetIndex.length; i++) {
+              if (window._isetIndex[i].name === m[1]) { active = m[1]; break; }
+            }
+          }
+        }
+        if (!active) active = window._isetIndex[0].name;
+        // Toggle the "switch investigation" button visibility based on count.
+        var switchBtn = document.getElementById('investigation-switch-btn');
+        if (switchBtn) {
+          switchBtn.style.display = window._isetIndex.length > 1 ? '' : 'none';
+        }
+        _openInvestigationDetail(active);
       })
       .catch(function(err) {
         if (list) list.innerHTML = '<p class="empty-state" style="color:#b91c1c">' +
@@ -4222,10 +3569,6 @@
     if (list) list.style.display = '';
     if (detail) detail.style.display = 'none';
     window._currentIset = null;
-    window._currentIsetSlug = '';
-    if (typeof window._renderRailInvestigationGroups === 'function') {
-      try { window._renderRailInvestigationGroups(); } catch (_) { /* ignore */ }
-    }
     _renderInvestigationSets();
   }
   window._showInvestigationList = _showInvestigationList;
@@ -4237,17 +3580,7 @@
       list.innerHTML = '<p class="empty-state">No investigations declared. Author one at <code>investigations/&lt;name&gt;/investigation.yaml</code>.</p>';
       return;
     }
-    // Closed/archived investigations sink to the bottom (stable sort).
-    var ordered = (window._isetIndex || []).map(function(it, idx) { return [it, idx]; });
-    ordered.sort(function(a, b) {
-      var ac = (a[0].status === 'archived' || a[0].status === 'closed') ? 1 : 0;
-      var bc = (b[0].status === 'archived' || b[0].status === 'closed') ? 1 : 0;
-      if (ac !== bc) return ac - bc;
-      return a[1] - b[1];
-    });
-    list.innerHTML = ordered.map(function(pair) {
-      var iset = pair[0];
-      var closed = (iset.status === 'archived' || iset.status === 'closed');
+    list.innerHTML = window._isetIndex.map(function(iset) {
       var desc = (iset.description || '').split('\n')[0].slice(0, 240);
       // Prefer the server-computed effective_status (derived from member
       // studies' live statuses). Fall back to the author-declared yaml
@@ -4260,64 +3593,22 @@
       var intentLine = (authStatus && authStatus !== effStatus)
         ? '<div class="muted" style="font-size:0.72em; margin-top:-2px; margin-bottom:6px;">intent: ' + _esc(authStatus) + '</div>'
         : '';
-      var currentPill = iset.current
-        ? '<span class="status-pill" style="font-size:0.72em;background:#dcfce7;color:#166534;border:1px solid #86efac">● current branch</span>'
-        : '';
-      // Closed/archived: show a gray "Closed" pill INSTEAD of effective-status.
-      var statusPill = closed
-        ? '<span class="status-pill" style="font-size:0.78em;background:#e5e7eb;color:#4b5563;border:1px solid #d1d5db">Closed</span>'
-        : '<span class="status-pill ' + pillClass + '" style="font-size:0.78em">' + _esc(effStatus) + '</span>';
-      var cardStyle = 'background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;cursor:pointer;transition:box-shadow 0.1s,border-color 0.1s;' +
-        (closed ? 'opacity:0.6;' : '');
-      var actionLabel = closed ? 'Reopen' : 'Close';
-      var actionStatus = closed ? 'in-progress' : 'archived';
-      var actionBtn = '<button type="button" class="js-authoring" onclick="event.stopPropagation();_setInvestigationStatus(this,\'' +
-        _esc(iset.name) + '\',\'' + actionStatus + '\')" ' +
-        'style="font-size:0.78em;padding:3px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;color:#334155;cursor:pointer">' +
-        actionLabel + '</button>';
       return '<div class="investigation-set-card" onclick="_openInvestigationDetail(\'' + _esc(iset.name) + '\')" ' +
-             'style="' + cardStyle + '">' +
+             'style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;cursor:pointer;transition:box-shadow 0.1s,border-color 0.1s;">' +
         '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px;">' +
           '<strong style="font-size:1.05em;flex:1">' + _esc(iset.title || iset.name) + '</strong>' +
-          currentPill +
-          statusPill +
+          '<span class="status-pill ' + pillClass + '" style="font-size:0.78em">' + _esc(effStatus) + '</span>' +
         '</div>' +
         intentLine +
         '<div class="muted" style="font-size:0.78em;font-family:monospace;margin-bottom:6px">' + _esc(iset.name) + '</div>' +
         (desc ? '<p style="margin:0 0 8px 0;font-size:0.9em;color:#475569">' + _esc(desc) + (iset.description.length > 240 ? '…' : '') + '</p>' : '') +
-        '<div style="display:flex;align-items:center;gap:10px;font-size:0.85em;color:#64748b">' +
-          '<span style="flex:1"><strong>' + iset.n_studies + '</strong> stud' + (iset.n_studies === 1 ? 'y' : 'ies') +
-          ' &nbsp;·&nbsp; click to open DAG</span>' +
-          actionBtn +
+        '<div style="font-size:0.85em;color:#64748b">' +
+          '<strong>' + iset.n_studies + '</strong> stud' + (iset.n_studies === 1 ? 'y' : 'ies') +
+          ' &nbsp;·&nbsp; click to open DAG' +
         '</div>' +
       '</div>';
     }).join('');
   }
-
-  // Close/Reopen an investigation: POST the new status, then reload the list.
-  // Resilient — never throws; surfaces a brief inline error on the button.
-  function _setInvestigationStatus(btn, name, status) {
-    var orig = btn ? btn.textContent : '';
-    if (btn) { btn.disabled = true; btn.textContent = '…'; }
-    fetch('/api/investigation-set-status', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({investigation: name, status: status}),
-    })
-      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-      .then(function() {
-        if (typeof _loadInvestigationSets === 'function') _loadInvestigationSets();
-      })
-      .catch(function(err) {
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = orig;
-          btn.style.color = '#b91c1c';
-          btn.title = 'Failed: ' + String(err);
-        }
-      });
-  }
-  window._setInvestigationStatus = _setInvestigationStatus;
 
   // ─── "+ New Investigation" modal ──────────────────────────────────────
   // Slug the user-typed name client-side for a live preview. Matches the
@@ -4666,74 +3957,15 @@
     host.style.display = '';
   }
 
-  // Investigation opening — state-first, and synchronized with the downloaded
-  // report's "Executive summary": both read the SAME canonical investigation.yaml
-  // fields (executive.{what_is_this,verdict,verdict_status} + question + hypothesis).
-  // The free-form `lead` ("replaces prior work…") is demoted to a Background fold.
-  function _renderInvOpening(d) {
-    d = d || {};
-    var ex = d.executive || {};
-    var whatIs  = (ex.what_is_this || '').trim();
-    var verdict = (ex.verdict || '').trim();
-    var vs      = (ex.verdict_status || 'in-progress').trim();
-    var oneline = function(t) { return (t || '').replace(/\s+/g, ' ').trim(); };
-    var q   = oneline(d.question);
-    var hyp = oneline(d.hypothesis);
-    var leadProse = (d.lead || d.description || '').trim();
-
-    // Legacy investigations with no executive content fall back to the lead.
-    if (!whatIs && !verdict && !q && !hyp) {
-      return leadProse ? _renderInvLeadMarkdown(leadProse) : '';
-    }
-
-    var key = String(vs).toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    var vColor = ({ 'passed':'#166534','complete':'#166534','in-progress':'#854d0e',
-                    'blocked':'#991b1b','failed':'#991b1b','planning':'#1e40af' })[key] || '#475569';
-    var vBg = ({ 'passed':'#dcfce7','complete':'#dcfce7','in-progress':'#fef9c3',
-                 'blocked':'#fee2e2','failed':'#fee2e2','planning':'#dbeafe' })[key] || '#e2e8f0';
-
-    var out = '';
-    if (whatIs)
-      out += '<div style="margin:2px 0 10px;color:#334155;line-height:1.5">' + _renderInvLeadMarkdown(whatIs) + '</div>';
-    if (verdict)
-      out += '<div style="background:#f8fafc;border-left:5px solid ' + vColor + ';border-radius:8px;padding:10px 14px;margin:10px 0">' +
-        '<span style="display:inline-block;font-size:0.7em;font-weight:700;letter-spacing:0.03em;background:' + vBg +
-          ';color:' + vColor + ';padding:2px 9px;border-radius:9999px;margin-right:8px">' + _esc(vs.toUpperCase()) + '</span>' +
-        '<strong style="color:#1e293b">Current verdict.</strong> <span style="color:#334155">' + _esc(verdict) + '</span></div>';
-    if (q)
-      out += '<p style="margin:8px 0;color:#334155;line-height:1.5"><strong style="color:#1e293b">Question.</strong> ' + _esc(q) + '</p>';
-    if (hyp)
-      out += '<p style="margin:8px 0;color:#475569;line-height:1.5"><strong style="color:#1e293b">Hypothesis.</strong> ' + _esc(hyp) + '</p>';
-    if (leadProse)
-      out += '<details style="margin-top:10px"><summary style="cursor:pointer;font-size:0.88em;color:#64748b">Background &amp; context</summary>' +
-        '<div style="margin-top:6px;color:#475569;line-height:1.5">' + _renderInvLeadMarkdown(leadProse) + '</div></details>';
-    return out;
-  }
-
   function _openInvestigationDetail(name) {
     window._currentIset = name;
-    // Sync the left-rail STUDIES section to the selected investigation
-    // (the top-left now switches repos, so selection drives the sidebar).
-    if (window._currentIsetSlug !== name) {
-      window._currentIsetSlug = name;
-      if (typeof window._renderRailInvestigationGroups === 'function') {
-        try { window._renderRailInvestigationGroups(); } catch (_) { /* ignore */ }
-      }
-    }
     document.getElementById('investigations-list').style.display = 'none';
     document.getElementById('investigation-detail-view').style.display = '';
     document.getElementById('investigation-detail-title').textContent = name;
     document.getElementById('investigation-detail-description').textContent = 'Loading…';
 
-    // Route through DataSource so snapshot mode reads api/iset/<name>.json from
-    // the static bundle instead of hitting the live /api/iset/<name> endpoint
-    // (which would 404 in a hosted read-only bundle). Direct-fetch fallback keeps
-    // local-server mode identical — the ternary branch only triggers under snapshot.
-    var _isetDetailFetch = (window.DataSource && window.DataSource.loadInvestigation)
-      ? window.DataSource.loadInvestigation(name)
-      : fetch('/api/iset/' + encodeURIComponent(name), {headers: {Accept: 'application/json'}})
-          .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
-    _isetDetailFetch
+    fetch('/api/iset/' + encodeURIComponent(name), {headers: {Accept: 'application/json'}})
+      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function(d) {
         window._currentIsetData = d;
         document.getElementById('investigation-detail-title').textContent = d.title || d.name;
@@ -4749,13 +3981,13 @@
         // Lead paragraph: render lead (preferred) or fall back to description.
         // Light markdown: paragraph splits, * bullets, `code`, **bold**.
         var leadEl = document.getElementById('investigation-detail-description');
-        leadEl.innerHTML = _renderInvOpening(d);
+        var leadText = (d.lead || d.description || '').trim();
+        leadEl.innerHTML = leadText ? _renderInvLeadMarkdown(leadText) : '';
 
-        // At-a-glance study-card row removed (user request 2026-06-07): the
-        // dependency DAG below shows the same studies, so the top row was
-        // redundant. Clear + hide the host so no empty band remains.
-        var _aagHost = document.getElementById('investigation-at-a-glance');
-        if (_aagHost) { _aagHost.innerHTML = ''; _aagHost.style.display = 'none'; }
+        // At-a-glance grid: one tile per study with a one-line role.
+        // Sources: investigation.yaml#at_a_glance (preferred) → derive from
+        // each study's purpose.question first sentence as fallback.
+        _renderInvAtAGlance(d);
 
         // How to read: yaml-driven list of evaluator tips. Hidden if absent.
         _renderInvHowToRead(d.how_to_read);
@@ -4770,12 +4002,7 @@
         if (storyBox && storyText) {
           var story = (d.biological_story || '').trim();
           if (story) {
-            // Render as reflowing paragraphs (split on blank lines, collapse
-            // intra-paragraph hard newlines to spaces) so the text uses the full
-            // width instead of breaking at the YAML's source newlines.
-            storyText.innerHTML = story.split(/\n\s*\n/).map(function(para) {
-              return '<p>' + _esc(para.replace(/\s*\n\s*/g, ' ').trim()) + '</p>';
-            }).join('');
+            storyText.textContent = story;
             storyBox.style.display = '';
           } else {
             storyText.textContent = '';
@@ -4978,109 +4205,41 @@
       byDepth[d].sort(function(a, b) { return a.name.localeCompare(b.name); });
     });
 
-    // Horizontal layout (depth flows left->right). Card HEIGHT is NOT fixed:
-    // each card grows to fit its full text. We render once, measure each card,
-    // then stack + center the columns by the measured heights (two passes) so
-    // nothing is clipped.
-    var CARD_W = 210;
-    var X_GAP = 64, Y_GAP = 22;
-    var PAD_X = 24, PAD_Y = 16;
-    var svgNS = 'http://www.w3.org/2000/svg';
+    // Layout constants — vertical orientation.
+    var CARD_W = 320, CARD_H = 120;
+    var X_GAP = 40,   Y_GAP = 60;
+    var PAD_X = 24,   PAD_Y = 16;
+
+    // Compute each card's (x, y): y = depth, x = within-depth slot.
     var pos = {};
     var depths = Object.keys(byDepth).map(Number).sort(function(a, b) { return a - b; });
-
-    // -- Pass 1: build every card at its column x (top TBD), append, measure --
-    studies.forEach(function(s) {
-      var liveStatus = s.effective_status || s.status || 'planned';
-      var confidence = s.confidence || (function(st) {
-        if (st === 'completed' || st === 'complete' || st === 'ran') return 'Accepted';
-        if (st === 'in_progress' || st === 'running') return 'Investigating';
-        if (st === 'failed' || st === 'invalid') return 'Refuted';
-        return 'Planned';
-      })(liveStatus);
-      var ss = ({
-        Accepted:      {color: '#16a34a', icon: '✓'},
-        Investigating: {color: '#ca8a04', icon: '◐'},
-        Planned:       {color: '#2563eb', icon: '○'},
-        Refuted:       {color: '#dc2626', icon: '✗'},
-      })[confidence] || {color: '#9ca3af', icon: '○'};
-      var followUps = s.follow_up_studies || [];
-
-      // Single display name everywhere: authored title:, else the shared
-      // _humanizeStudyName derivation (same as control panel + study page).
-      var prettyTitle = s.title || _humanizeStudyName(s.name).title;
-      // Show the FULL question + claim (no truncation) — the card grows to fit.
-      var asks = (s.question || '').replace(/\s+/g, ' ').split(/[.?]/)[0].trim();
-      var findings = s.findings || [];
-      var claim = (s.claim ||
-        (findings[0] && (findings[0].summary || findings[0].statement || findings[0].id)) || ''
-      ).replace(/\s+/g, ' ').trim();
-      var moreN = findings.length > 1 ? findings.length - 1 : 0;
-
-      var node = document.createElement('div');
-      node.className = 'iset-dag-node';
-      node.onclick = function() { _openStudyInsideInvestigation(s.name); };
-      node.title = s.name + ' — ' + confidence;
-      var x = PAD_X + depth[s.name] * (CARD_W + X_GAP);
-      node.style.cssText =
-        'position:absolute;left:' + x + 'px;top:0px;' +
-        'width:' + CARD_W + 'px;' +
-        'background:#fff;border:1px solid #e5e7eb;border-top:3px solid ' + ss.color + ';' +
-        'border-radius:8px;padding:10px 12px;cursor:pointer;box-sizing:border-box;' +
-        'box-shadow:0 1px 2px rgba(0,0,0,0.05);transition:box-shadow 0.1s,border-color 0.1s;';
-
-      var followUpsChip = '';
-      if (s.phase === 'Decide' && followUps.length) {
-        followUpsChip =
-          '<button class="dag-followups-btn" ' +
-          'onclick="event.stopPropagation(); _openDagFollowupsPopover(\'' + _esc(s.name) + '\', this)" ' +
-          'style="margin-top:8px;font-size:0.68em;padding:2px 7px;border:1px solid #10b981;background:#d1fae5;color:#065f46;border-radius:9999px;cursor:pointer">' +
-          '▸ ' + followUps.length + ' follow-up' + (followUps.length === 1 ? '' : 's') +
-          '</button>';
-      }
-      node.innerHTML =
-        '<div style="display:flex;align-items:flex-start;gap:6px">' +
-          '<span style="color:' + ss.color + ';font-size:1.05em;line-height:1.1;flex:none">' + ss.icon + '</span>' +
-          '<strong style="font-size:0.85em;line-height:1.25;color:#1e293b;flex:1">' + _esc(prettyTitle) + '</strong>' +
-          '<span style="font-size:0.62em;font-weight:700;color:' + ss.color + ';white-space:nowrap;margin-top:1px">' + _esc(confidence) + '</span>' +
-        '</div>' +
-        (asks
-          ? '<div style="font-size:0.72em;margin-top:7px;line-height:1.35;color:#64748b">' +
-              '<span style="font-weight:600;color:#475569">Asks:</span> ' + _esc(asks) + '</div>'
-          : '') +
-        '<div style="font-size:0.72em;margin-top:5px;line-height:1.35;color:#64748b">' +
-          '<span style="font-weight:600;color:#475569">Finds:</span> ' +
-          (claim ? _esc(claim) : '<em style="color:#94a3b8">pending evidence</em>') +
-          (moreN ? ' <span style="color:#94a3b8">+' + moreN + ' more</span>' : '') +
-        '</div>' +
-        followUpsChip;
-      node._followUps = followUps;
-      nodesHost.appendChild(node);
-      pos[s.name] = { x: x, node: node, depth: depth[s.name] };
-    });
-
-    // Measure now that content is in the DOM (container is already visible).
-    studies.forEach(function(s) { pos[s.name].h = pos[s.name].node.offsetHeight || 120; });
-
-    // -- Pass 2: stack each column vertically by measured height, then center --
-    var colTotals = {};
+    var maxSlot = 0;
     depths.forEach(function(d) {
-      var sum = 0;
-      byDepth[d].forEach(function(s) { sum += pos[s.name].h; });
-      colTotals[d] = sum + Math.max(0, byDepth[d].length - 1) * Y_GAP;
-    });
-    var maxCol = 0;
-    depths.forEach(function(d) { if (colTotals[d] > maxCol) maxCol = colTotals[d]; });
-    var canvasH = Math.max(PAD_Y * 2 + maxCol, 180);
-    depths.forEach(function(d) {
-      var yc = PAD_Y + Math.max(0, (canvasH - PAD_Y * 2 - colTotals[d]) / 2);
-      byDepth[d].forEach(function(s) {
-        pos[s.name].y = yc;
-        pos[s.name].node.style.top = yc + 'px';
-        yc += pos[s.name].h + Y_GAP;
+      byDepth[d].forEach(function(s, i) {
+        pos[s.name] = {
+          x: PAD_X + i * (CARD_W + X_GAP),
+          y: PAD_Y + d * (CARD_H + Y_GAP),
+          depth: d, slot: i,
+        };
+        if (i > maxSlot) maxSlot = i;
       });
     });
-    var canvasW = PAD_X * 2 + (depths.length ? depths[depths.length - 1] : 0) * (CARD_W + X_GAP) + CARD_W;
+
+    // Center each depth row inside the canvas: compute final canvasW first.
+    var canvasW = Math.max(
+      PAD_X * 2 + (maxSlot + 1) * CARD_W + maxSlot * X_GAP,
+      720
+    );
+    depths.forEach(function(d) {
+      var rowSize = byDepth[d].length;
+      var rowWidth = rowSize * CARD_W + (rowSize - 1) * X_GAP;
+      var rowOffset = Math.max(PAD_X, (canvasW - rowWidth) / 2);
+      byDepth[d].forEach(function(s, i) {
+        pos[s.name].x = rowOffset + i * (CARD_W + X_GAP);
+      });
+    });
+
+    var canvasH = PAD_Y * 2 + (depths.length > 0 ? depths[depths.length - 1] : 0) * (CARD_H + Y_GAP) + CARD_H;
 
     nodesHost.style.width = canvasW + 'px';
     nodesHost.style.height = canvasH + 'px';
@@ -5088,39 +4247,45 @@
     edgesSvg.setAttribute('height', canvasH);
     edgesSvg.style.width = canvasW + 'px';
     edgesSvg.style.height = canvasH + 'px';
+    // Size the shell to fit its content so the OUTER page scrolls instead
+    // of creating a nested scrollbar inside the panel.
     var shellSize = document.getElementById('investigation-dag-shell');
     if (shellSize) shellSize.style.height = canvasH + 'px';
 
-    // Edges (drawn after positions are known), using measured heights.
+    // Marker for arrowheads (defined once).
+    var svgNS = 'http://www.w3.org/2000/svg';
     edgesSvg.innerHTML =
       '<defs><marker id="dag-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" ' +
       'markerWidth="7" markerHeight="7" orient="auto-start-reverse">' +
       '<path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/></marker></defs>';
+
+    // Render edges (behind cards) — top-of-child ← bottom-of-parent.
     studies.forEach(function(s) {
       (s.parent_studies || []).forEach(function(p) {
         var pn = p.study || p;
         if (!pos[pn] || !pos[s.name]) return;
-        var x1 = pos[pn].x + CARD_W;
-        var y1 = pos[pn].y + pos[pn].h / 2;
-        var x2 = pos[s.name].x;
-        var y2 = pos[s.name].y + pos[s.name].h / 2;
-        var dx = Math.max(28, (x2 - x1) / 2);
+        var x1 = pos[pn].x + CARD_W / 2;
+        var y1 = pos[pn].y + CARD_H;
+        var x2 = pos[s.name].x + CARD_W / 2;
+        var y2 = pos[s.name].y;
+        var dy = Math.max(28, (y2 - y1) / 2);
         var path = document.createElementNS(svgNS, 'path');
         path.setAttribute('d', 'M ' + x1 + ' ' + y1 +
-                              ' C ' + (x1 + dx) + ' ' + y1 +
-                              ', ' + (x2 - dx) + ' ' + y2 +
+                              ' C ' + x1 + ' ' + (y1 + dy) +
+                              ', ' + x2 + ' ' + (y2 - dy) +
                               ', ' + x2 + ' ' + y2);
         path.setAttribute('fill', 'none');
         path.setAttribute('stroke', '#94a3b8');
         path.setAttribute('stroke-width', '1.5');
         path.setAttribute('marker-end', 'url(#dag-arrowhead)');
         edgesSvg.appendChild(path);
-        var cond = (p.relation || 'leads to');
-        if (cond === 'regulatory' || cond === 'refutes') path.setAttribute('stroke-dasharray', '5 3');
+
+        var cond = (p.condition || 'tests-passed');
+        var midX = (x1 + x2) / 2 + 8;
+        var midY = (y1 + y2) / 2;
         var label = document.createElementNS(svgNS, 'text');
-        label.setAttribute('x', (x1 + x2) / 2);
-        label.setAttribute('y', (y1 + y2) / 2 - 6);
-        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('x', midX);
+        label.setAttribute('y', midY);
         label.setAttribute('font-size', '10');
         label.setAttribute('fill', '#94a3b8');
         label.textContent = cond;
@@ -5128,32 +4293,83 @@
       });
     });
 
+    // Render nodes (study cards).
+    studies.forEach(function(s) {
+      var p = pos[s.name];
+      var statusColor = ({
+        planned:    '#94a3b8',
+        running:    '#3b82f6',
+        ran:        '#10b981',
+        complete:   '#059669',
+        failed:     '#dc2626',
+        invalid:    '#dc2626',
+      })[s.status] || '#94a3b8';
+
+      var node = document.createElement('div');
+      node.className = 'iset-dag-node';
+      node.onclick = function() { _openStudyInsideInvestigation(s.name); };
+      node.style.cssText =
+        'position:absolute;left:' + p.x + 'px;top:' + p.y + 'px;' +
+        'width:' + CARD_W + 'px;height:' + CARD_H + 'px;' +
+        'background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;' +
+        'cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.04);transition:box-shadow 0.1s,border-color 0.1s;' +
+        'border-left: 4px solid ' + statusColor + ';' +
+        'box-sizing:border-box;overflow:hidden;';
+      // Phase chip color mapping (mirrors study-detail.html .phase-* CSS).
+      var phaseColors = {
+        Design:   {bg: '#e0e7ff', fg: '#3730a3'},
+        Build:    {bg: '#fef3c7', fg: '#92400e'},
+        Simulate: {bg: '#dbeafe', fg: '#1e40af'},
+        Evaluate: {bg: '#fce7f3', fg: '#9d174d'},
+        Decide:   {bg: '#d1fae5', fg: '#065f46'},
+      };
+      var pc = phaseColors[s.phase] || null;
+      var phaseChip = (s.phase && pc)
+        ? '<span class="phase-pill" style="background:' + pc.bg + ';color:' + pc.fg +
+          ';font-size:0.7em;padding:1px 8px;border-radius:9999px;margin-right:4px">' + _esc(s.phase) + '</span>'
+        : '';
+      // Composite counts line — readouts (new) | variants (legacy) + behavior tests + requirements (new).
+      var nReadouts = (s.n_readouts !== undefined) ? s.n_readouts : 0;
+      var nReqs = (s.n_requirements !== undefined) ? s.n_requirements : 0;
+      var followUps = s.follow_up_studies || [];
+      // When phase=Decide AND there are follow-ups, surface a clickable chip
+      // that opens a popover listing them with one-click "Seed →" actions.
+      var followUpsChip = '';
+      if (s.phase === 'Decide' && followUps.length) {
+        followUpsChip =
+          '<button class="dag-followups-btn" ' +
+          'onclick="event.stopPropagation(); _openDagFollowupsPopover(\'' + _esc(s.name) + '\', this)" ' +
+          'style="margin-top:4px;font-size:0.72em;padding:2px 8px;border:1px solid #10b981;background:#d1fae5;color:#065f46;border-radius:9999px;cursor:pointer">' +
+          '▸ ' + followUps.length + ' follow-up' + (followUps.length === 1 ? '' : 's') + ' · click to seed' +
+          '</button>';
+      }
+      node.innerHTML =
+        '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px;margin-bottom:4px">' +
+          '<strong style="font-size:0.95em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(s.name) + '</strong>' +
+          '<span style="white-space:nowrap">' + phaseChip +
+            '<span class="status-pill" style="background:#f1f5f9;color:#475569;font-size:0.7em;padding:1px 6px;">' + _esc(s.status || 'planned') + '</span>' +
+          '</span>' +
+        '</div>' +
+        '<div style="font-size:0.78em;color:#64748b;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+          _esc(s.baseline_source || '—') + '</div>' +
+        '<div style="font-size:0.78em;color:#64748b;margin-top:6px">' +
+          (s.n_variants || 0) + ' sim · ' +
+          (s.n_behaviors || 0) + ' tests' +
+          (nReadouts ? ' · ' + nReadouts + ' readouts' : '') +
+          (nReqs ? ' · ' + nReqs + ' reqs' : '') +
+        '</div>' +
+        followUpsChip +
+        (followUpsChip
+          ? ''
+          : '<div style="font-size:0.72em;color:#94a3b8;margin-top:4px">Click to open study</div>');
+      // Stash follow-ups on the node for the popover lookup.
+      node._followUps = followUps;
+      nodesHost.appendChild(node);
+    });
+
     // Auto-scroll the shell so the top of the DAG is in view.
     var shell = document.getElementById('investigation-dag-shell');
     if (shell) shell.scrollTop = 0;
-
-    // Legend (status colors + edge types) — created once below the shell.
-    var legendHost = document.getElementById('investigation-dag-legend');
-    if (!legendHost && shell && shell.parentNode) {
-      legendHost = document.createElement('div');
-      legendHost.id = 'investigation-dag-legend';
-      shell.parentNode.insertBefore(legendHost, shell.nextSibling);
-    }
-    if (legendHost) {
-      var _lg = function(color, icon, label) {
-        return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:14px">' +
-          '<span style="color:' + color + ';font-size:1em">' + icon + '</span>' +
-          '<span>' + label + '</span></span>';
-      };
-      legendHost.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;' +
-        'font-size:0.74em;color:#64748b;padding:8px 4px 0;border-top:1px solid #f1f5f9;margin-top:8px';
-      legendHost.innerHTML =
-        '<span style="font-weight:600;color:#475569;margin-right:10px">Confidence:</span>' +
-        _lg('#16a34a', '✓', 'Accepted') + _lg('#ca8a04', '◐', 'Investigating') +
-        _lg('#2563eb', '○', 'Planned') + _lg('#dc2626', '✗', 'Refuted') +
-        '<span style="margin:0 14px 0 6px"><span style="color:#94a3b8">→</span> leads to</span>' +
-        '<span><span style="color:#94a3b8;letter-spacing:-1px">⤄</span> regulatory</span>';
-    }
   }
   window._renderInvestigationDag = _renderInvestigationDag;
 
@@ -5168,12 +4384,7 @@
     for (var i = 0; i < isetStudies.length; i++) {
       if (isetStudies[i].name === studyName) { match = isetStudies[i]; break; }
     }
-    // Prefer the richer discovery_implications.followup_study_proposals;
-    // fall back to legacy follow_up_studies for back-compat.
-    var di = (match && match.discovery_implications) || {};
-    var proposals = di.followup_study_proposals || [];
-    var usingProposals = proposals.length > 0;
-    var followUps = usingProposals ? proposals : ((match && match.follow_up_studies) || []);
+    var followUps = (match && match.follow_up_studies) || [];
     if (!followUps.length) {
       alert('No follow-ups recorded for ' + studyName + '.');
       return;
@@ -5199,10 +4410,7 @@
       '<p style="font-size:0.85em;color:#64748b;margin:0 0 10px 0">Click <em>Seed →</em> to spawn a new child study from any entry. The new study inherits this one as a pipeline_gate prerequisite.</p>';
 
     var rows = followUps.map(function(f, idx) {
-      // Normalize across the two shapes: legacy follow_up_studies use
-      // kind/why/effort; followup_study_proposals use study_type/
-      // proposed_experiment/expected_information_gain.
-      var kind = f.kind || f.study_type || 'other';
+      var kind = f.kind || 'other';
       var kindColors = {
         infrastructure_fix: {bg: '#fef2f2', fg: '#991b1b', border: '#dc2626'},
         calibration_task:   {bg: '#fefce8', fg: '#92400e', border: '#f59e0b'},
@@ -5213,24 +4421,19 @@
       };
       var kc = kindColors[kind] || kindColors.other;
       var canSeed = kind !== 'existing';
-      var seedCall = usingProposals
-        ? '_seedFollowupProposal(\'' + _esc(studyName) + '\', ' + JSON.stringify(f.id != null ? String(f.id) : '') + ', ' + idx + ', this)'
-        : '_seedFollowupAndOpen(\'' + _esc(studyName) + '\', ' + idx + ')';
       var seedBtn = canSeed
-        ? '<button onclick="event.stopPropagation(); ' + seedCall + '" ' +
+        ? '<button onclick="event.stopPropagation(); _seedFollowupAndOpen(\'' + _esc(studyName) + '\', ' + idx + ')" ' +
           'style="font-size:0.8em;padding:3px 10px;border:1px solid ' + kc.border + ';background:#fff;color:' + kc.fg +
           ';border-radius:4px;cursor:pointer;white-space:nowrap">Seed →</button>'
         : '<span style="font-size:0.78em;color:#64748b;font-style:italic">(existing study)</span>';
       var statusBadge = f.status
         ? '<span style="font-size:0.7em;padding:1px 6px;border-radius:9999px;background:#fef3c7;color:#92400e;margin-left:6px">' + _esc(f.status) + '</span>'
         : '';
-      var effortText = f.effort || f.expected_information_gain;
-      var effortBadge = effortText
-        ? '<span style="font-size:0.7em;padding:1px 6px;border-radius:9999px;background:#e0e7ff;color:#3730a3;margin-left:6px;font-family:monospace">' + _esc(effortText) + '</span>'
+      var effortBadge = f.effort
+        ? '<span style="font-size:0.7em;padding:1px 6px;border-radius:9999px;background:#e0e7ff;color:#3730a3;margin-left:6px;font-family:monospace">' + _esc(f.effort) + '</span>'
         : '';
-      var whyText = f.why || f.proposed_experiment || '';
-      var why = whyText
-        ? '<div style="font-size:0.83em;color:#475569;margin-top:4px;line-height:1.4">' + _esc(whyText.slice(0, 280)) + (whyText.length > 280 ? '…' : '') + '</div>'
+      var why = f.why
+        ? '<div style="font-size:0.83em;color:#475569;margin-top:4px;line-height:1.4">' + _esc(f.why.slice(0, 280)) + (f.why.length > 280 ? '…' : '') + '</div>'
         : '';
       return '<div style="padding:10px 12px;border:1px solid ' + kc.border + ';border-left:4px solid ' + kc.border +
              ';border-radius:4px;background:' + kc.bg + ';margin-bottom:8px">' +
@@ -5284,48 +4487,6 @@
   }
   window._seedFollowupAndOpen = _seedFollowupAndOpen;
 
-  // Seed a child study from a discovery_implications.followup_study_proposals
-  // entry (the richer successor to follow_up_studies). Identifies the proposal
-  // by id (preferred) or index. On success, refreshes the current
-  // investigation so the new node appears in the graph (no full navigation —
-  // the expert stays in the investigation they're working in).
-  function _seedFollowupProposal(parentName, proposalId, proposalIdx, btn) {
-    if (!confirm('Spawn a new study node from this follow-up proposal?\n\n'
-        + 'A new study.yaml will be created under studies/<new-name>/ with a '
-        + 'leads-to edge back to ' + parentName + '.')) return;
-    var origText = btn ? btn.textContent : null;
-    if (btn) { btn.disabled = true; btn.textContent = '… seeding'; }
-    var payload = {parent: parentName};
-    if (proposalId) payload.proposal_id = proposalId;
-    payload.proposal_idx = proposalIdx;
-    fetch('/api/study-seed-followup', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload),
-    }).then(function(r) { return r.json().then(function(d) { return {status: r.status, body: d}; }); })
-      .then(function(res) {
-        if (res.status !== 200 || res.body.error) {
-          alert('Seed failed: ' + (res.body.error || res.status));
-          if (btn) { btn.disabled = false; btn.textContent = origText; }
-          return;
-        }
-        var pop = document.getElementById('dag-followups-popover');
-        if (pop) pop.remove();
-        if (btn) { btn.textContent = '✓ added'; }
-        // Refresh the investigation view so the new node + edge render.
-        if (window._currentIset && typeof _openInvestigationDetail === 'function') {
-          _openInvestigationDetail(window._currentIset);
-        } else {
-          alert('Created: ' + res.body.new_study_name);
-        }
-      })
-      .catch(function(err) {
-        alert('Seed failed: ' + err);
-        if (btn) { btn.disabled = false; btn.textContent = origText; }
-      });
-  }
-  window._seedFollowupProposal = _seedFollowupProposal;
-
   // Click a DAG node → load the full study in an in-page iframe BELOW the
   // DAG (no jump to the legacy Studies tab). The iframe is the same
   // /studies/<name> route the standalone embed uses.
@@ -5333,13 +4494,7 @@
     var panel = document.getElementById('investigation-study-embed-panel');
     var frame = document.getElementById('investigation-study-embed-frame');
     var nameEl = document.getElementById('investigation-study-embed-name');
-    if (!panel || !frame) {
-      // This view (e.g. the report / deep-link investigation view) has no
-      // in-place study-embed panel — navigate to the study page directly so the
-      // sidebar study link still works instead of dying silently.
-      window.location = '/studies/' + encodeURIComponent(name);
-      return;
-    }
+    if (!panel || !frame) return;
     window._currentInvestigationStudy = name;
     frame.src = '/studies/' + encodeURIComponent(name);
     if (nameEl) nameEl.textContent = name;
@@ -5382,21 +4537,13 @@
     var btn = event && event.target;
     var orig = btn ? btn.textContent : null;
     if (btn) { btn.textContent = 'Generating…'; btn.disabled = true; }
-    // Use window.DataSource.loadInvestigation if available (client-fetch seam,
-    // sub-project #1).  Falls back to a direct fetch so local mode is unchanged.
-    var _isetFetch = (window.DataSource && window.DataSource.loadInvestigation)
-      ? window.DataSource.loadInvestigation(name)
-      : fetch('/api/iset/' + encodeURIComponent(name), {headers: {Accept: 'application/json'}})
-          .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
-    _isetFetch
+    fetch('/api/iset/' + encodeURIComponent(name), {headers: {Accept: 'application/json'}})
+      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function(iset) {
         var studyFetches = (iset.studies || []).map(function(s) {
-          return ((window.DataSource && window.DataSource.loadStudy)
-            ? window.DataSource.loadStudy(s.name)
-            : fetch('/api/study/' + encodeURIComponent(s.name))
-                .then(function(r) { return r.ok ? r.json() : {spec: {name: s.name, error: 'load-failed'}}; })
-                .then(function(j) { return j.spec || j; })
-          );
+          return fetch('/api/study/' + encodeURIComponent(s.name))
+            .then(function(r) { return r.ok ? r.json() : {spec: {name: s.name, error: 'load-failed'}}; })
+            .then(function(j) { return j.spec || j; });
         });
         var bibFetch = fetch('/api/references-bib')
           .then(function(r) { return r.ok ? r.json() : {entries: []}; })
@@ -5414,22 +4561,11 @@
           .then(function(r) { return r.ok ? r.json() : {generation: null}; })
           .then(function(j) { return (j && j.generation) || null; })
           .catch(function() { return null; });
-        // Workspace GitHub repo (owner/name) — injected into the exported
-        // report's inline-feedback widget so its "Open GitHub issue" button
-        // pre-fills against the right repo with no reviewer prompt. Best-
-        // effort: null when the workspace has no GitHub origin (widget then
-        // falls back to host-detection / a one-time prompt).
-        var ghRepoFetch = fetch('/api/github-repo')
-          .then(function(r) { return r.ok ? r.json() : {repo: null}; })
-          .then(function(j) { return (j && j.repo) || null; })
-          .catch(function() { return null; });
         return Promise.all([Promise.all(studyFetches), bibFetch,
-                            Promise.all(chartFetches), genFetch,
-                            ghRepoFetch]).then(function(arr) {
+                            Promise.all(chartFetches), genFetch]).then(function(arr) {
           var chartsByStudy = {};
           arr[2].forEach(function(c) { chartsByStudy[c.name] = c.charts; });
           var generation = arr[3];
-          var ghRepo = arr[4];
           // Second pass: now that we have the specs, fetch each study's
           // embed_visualizations URLs so the downloaded report can inline
           // them as <iframe srcdoc="...">. This makes the file truly
@@ -5464,15 +4600,14 @@
             });
             return {iset: iset, specs: specs, bibEntries: arr[1],
                     chartsByStudy: chartsByStudy, embedsByStudy: embedsByStudy,
-                    generation: generation, ghRepo: ghRepo};
+                    generation: generation};
           });
         });
       })
       .then(function(bundle) {
         var html = _buildInvestigationReportHtml(bundle.iset, bundle.specs,
                                                   bundle.bibEntries, bundle.chartsByStudy,
-                                                  bundle.embedsByStudy, bundle.generation,
-                                                  bundle.ghRepo);
+                                                  bundle.embedsByStudy, bundle.generation);
         var dateStr = new Date().toISOString().slice(0, 10);
         var filename = 'investigation-' + name + '-' + dateStr + '.html';
         _triggerDownload(filename, html, 'text/html');
@@ -5516,121 +4651,12 @@
     return _h(s).replace(/\n\s*\n/g, '<br><br>').replace(/\n/g, ' ');
   }
 
-  // Small unobtrusive badge reflecting a chart's run→viz freshness. The
-  // freshness field is computed server-side (lib/viz_freshness.chart_freshness)
-  // and carried on each static chart object in the study-charts payload.
-  //   fresh      → ✓ latest run   (green/muted)
-  //   stale      → ⚠ stale        (amber; names the recorded source run when known)
-  //   untracked  → ❓ untracked
-  //   unrendered → ◌ not rendered
-  function _freshnessBadge(c) {
-    var f = c && c.freshness;
-    if (!f) return '';
-    var label, color, bg;
-    if (f === 'fresh')        { label = '✓ latest run'; color = '#065f46'; bg = '#d1fae5'; }
-    else if (f === 'stale')   {
-      var src = (c.meta && (c.meta.source_run_id || c.meta.run_id)) || c.source_run_id;
-      label = '⚠ stale' + (src ? ' (' + _h(src) + ')' : '');
-      color = '#92400e'; bg = '#fef3c7';
-    }
-    else if (f === 'untracked')  { label = '❓ untracked';   color = '#475569'; bg = '#f1f5f9'; }
-    else if (f === 'unrendered') { label = '◌ not rendered'; color = '#475569'; bg = '#f1f5f9'; }
-    else return '';
-    return '<span class="chart-freshness-badge" style="display:inline-block;'
-      + 'margin-left:8px;padding:1px 7px;border-radius:10px;font-size:11px;'
-      + 'font-weight:500;vertical-align:middle;color:' + color + ';background:' + bg + ';">'
-      + label + '</span>';
-  }
-
-  // Build the inner HTML of a study's chart-card list (shared by the initial
-  // report/card render and the live Refresh re-render). Each card carries a
-  // title row with the freshness badge, the media (inline SVG or data-URI
-  // <img>), and any caption/provenance text.
-  function _renderChartCardsHtml(charts, slug) {
-    return (charts || []).map(function(c, i) {
-      // Per-figure annotation host: a "study-...-chart-..." id matches the
-      // feedback ID_PATTERNS (/^study-/), so each figure gets its OWN 💬
-      // comment affordance (keyed by this id), not just the section-level one.
-      var cardId = 'study-' + (slug || 'x') + '-chart-'
-        + String(c.key || ('fig' + i)).replace(/[^a-zA-Z0-9_-]/g, '-');
-      var titleHtml = '';
-      var badge = _freshnessBadge(c);
-      var titleText = c.title || c.key || '';
-      if (badge || titleText) {
-        titleHtml = '<div class="chart-title" style="font-size:13px;font-weight:600;'
-          + 'margin-bottom:4px;display:flex;align-items:center;flex-wrap:wrap;">'
-          + '<span>' + _h(titleText) + '</span>' + badge + '</div>';
-      }
-      var capHtml = '';
-      if (c.caption) capHtml += '<div class="chart-caption">' + _h(c.caption) + '</div>';
-      if (c.simulations) capHtml +=
-          '<div class="chart-simulations"><strong>Simulations behind this chart.</strong> '
-          + _h(c.simulations) + '</div>';
-      if (c.interpretation) capHtml +=
-          '<div class="chart-interpretation"><strong>What it means.</strong> '
-          + _h(c.interpretation) + '</div>';
-      var media = c.img
-        ? '<img class="chart-img" src="' + c.img + '" alt="' + _h(c.key || 'chart') + '" loading="lazy">'
-        : (c.svg || '');
-      return '<div class="chart-card" id="' + cardId + '">' + titleHtml + media + capHtml + '</div>';
-    }).join('');
-  }
-
-  // POST /api/study-refresh-viz/<study> then re-fetch + re-render that study's
-  // charts section in place. Resilient: shows a brief inline status/error and
-  // never throws (a failed POST leaves the existing charts untouched).
-  window._refreshStudyViz = function(btn) {
-    var study = btn && btn.getAttribute('data-study');
-    if (!study) return;
-    var statusEl = btn.parentElement
-      ? btn.parentElement.querySelector('.chart-refresh-status') : null;
-    var setStatus = function(txt) { if (statusEl) statusEl.textContent = txt || ''; };
-    btn.disabled = true;
-    setStatus('refreshing…');
-    fetch('/api/study-refresh-viz/' + encodeURIComponent(study), {method: 'POST'})
-      .then(function(r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
-      .then(function(out) {
-        var results = (out && out.results) || [];
-        var errs = results.filter(function(x) { return x && x.status === 'error'; }).length;
-        var ok = results.filter(function(x) { return x && x.status === 'rendered'; }).length;
-        // Re-fetch the freshly-stamped charts and rebuild the section body.
-        return fetch('/api/study-charts/' + encodeURIComponent(study))
-          .then(function(r) { return r.ok ? r.json() : {charts: []}; })
-          .then(function(j) {
-            var container = document.getElementById('study-' + study + '-charts');
-            if (container) {
-              var cards = _renderChartCardsHtml(j.charts || [], study);
-              // Replace everything after the <h3> heading (preserve the
-              // heading + its Refresh button).
-              var h3 = container.querySelector('h3');
-              if (h3) {
-                while (h3.nextSibling) container.removeChild(h3.nextSibling);
-                h3.insertAdjacentHTML('afterend', cards);
-                // Re-point the status element (it lives inside the preserved h3).
-                statusEl = h3.querySelector('.chart-refresh-status');
-              } else {
-                container.innerHTML = cards;
-              }
-            }
-            setStatus(ok + ' rendered' + (errs ? ', ' + errs + ' failed' : ''));
-          });
-      })
-      .catch(function(e) {
-        setStatus('refresh failed: ' + (e && e.message ? e.message : 'error'));
-      })
-      .then(function() { btn.disabled = false; });
-  };
-
   // Construct the report's HTML body from the investigation + per-study specs.
-  function _buildInvestigationReportHtml(iset, specs, bibEntries, chartsByStudy, embedsByStudy, generation, ghRepo) {
+  function _buildInvestigationReportHtml(iset, specs, bibEntries, chartsByStudy, embedsByStudy, generation) {
     bibEntries = bibEntries || [];
     chartsByStudy = chartsByStudy || {};
     embedsByStudy = embedsByStudy || {};
     generation = generation || null;
-    ghRepo = ghRepo || null;
     var bibByKey = {};
     bibEntries.forEach(function(e) { bibByKey[e.key] = e; });
     var now = new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
@@ -5718,162 +4744,6 @@
       return (depthMap[a.name] || 0) - (depthMap[b.name] || 0)
           || a.name.localeCompare(b.name);
     });
-
-    // ── Spine C2: investigation verdict DAG + acceptance narrative ──────────
-    // A compact, dependency-true map of the member studies, each badged with
-    // its code-computed gate verdict, plus a one-paragraph acceptance roll-up.
-    // Reuses the `ordered` / `depthMap` topology above (no second sort) and the
-    // spine-computed verdicts/acceptance (no recompute). Mirrors the
-    // param-enforcement banner: surfaced, connected (nodes/criteria link to the
-    // per-study sections), labeled code-computed.
-    function _spineVerdictBadge(result) {
-      var r = (result || '').toString().toLowerCase();
-      if (r === 'passed' || r === 'pass') return { glyph: '✅', cls: 'pass', bd: '#16a34a' };
-      if (r === 'failed' || r === 'fail') return { glyph: '⛔', cls: 'fail', bd: '#dc2626' };
-      if (!r) return { glyph: '◽', cls: 'none', bd: '#cbd5e1' };
-      // needs_calibration / blocked / stale → needs work
-      return { glyph: '⚠', cls: 'warn', bd: '#f59e0b' };
-    }
-    function _verdictDagHtml() {
-      if (!ordered.length) return '';
-      var hasEdges = specs.some(function(s) { return (s.parent_studies || []).length; });
-      var byDepth = {};
-      ordered.forEach(function(s) {
-        var d = depthMap[s.name] || 0;
-        (byDepth[d] = byDepth[d] || []).push(s);
-      });
-      var depths = Object.keys(byDepth).map(Number).sort(function(a, b) { return a - b; });
-      var ranks = depths.map(function(d) {
-        var nodes = byDepth[d].map(function(s) {
-          var b = _spineVerdictBadge((s.computed_gate_verdict || {}).result);
-          var parents = (s.parent_studies || []).map(function(p) {
-            return (typeof p === 'string') ? p : p.study;
-          }).filter(Boolean);
-          var dep = parents.length
-            ? ' <span class="sdag-dep muted small">← ' + parents.map(function(p) {
-                return '<a href="#study-' + _h(p) + '">' + _h(p) + '</a>';
-              }).join(', ') + '</span>'
-            : '';
-          return '<li class="sdag-node sdag-' + b.cls + '" '
-            + 'style="margin:3px 0;padding:2px 8px;border-left:3px solid ' + b.bd + '">'
-            + '<span class="sdag-badge" title="code-computed gate verdict">' + b.glyph + '</span> '
-            + '<a href="#study-' + _h(s.name) + '"><strong>' + _h(s.name) + '</strong></a>'
-            + dep + '</li>';
-        }).join('');
-        return '<div class="sdag-rank" style="margin:4px 0">'
-          + (hasEdges ? '<span class="sdag-rank-lbl muted small" style="display:inline-block;min-width:64px">depth ' + d + '</span>' : '')
-          + '<ul class="sdag-list" style="list-style:none;margin:0;padding:0;display:inline-block;vertical-align:top">' + nodes + '</ul></div>';
-      }).join('');
-      return '<div class="study-verdict-dag" id="study-verdict-dag" '
-        + 'style="margin:14px 0;padding:12px 16px;background:#f8fafc;border:1px solid #cbd5e1;border-left-width:5px;border-radius:6px">'
-        + '<strong>Study verdict map</strong> '
-        + '<span class="muted small">code-computed gate verdicts (✅ passed · ⚠ needs work · ⛔ blocked)'
-        + (hasEdges ? '; edges = pipeline prerequisites (← depends on)' : '') + '</span>'
-        + ranks + '</div>';
-    }
-    function _acceptanceNarrativeHtml() {
-      var ca = iset.computed_acceptance;
-      if (!ca || !ca.criteria || !ca.criteria.length) return '';
-      var total = ca.criteria.length;
-      function _is(r, set) { return set.indexOf((r || '').toString().toLowerCase()) >= 0; }
-      var nPass = ca.criteria.filter(function(c) { return _is(c.result, ['passing', 'pass']); }).length;
-      var blocked = ca.criteria.filter(function(c) {
-        return _is(c.result, ['failing', 'fail', 'blocked']);
-      }).map(function(c) { return c.study; }).filter(Boolean);
-      var vs = ca.verdict_status || (nPass === total ? 'passing' : 'in-progress');
-      return '<p class="acceptance-narrative" id="acceptance-narrative" '
-        + 'style="margin:10px 0;padding:10px 16px;background:#f0f9ff;border-left:4px solid #3b82f6;border-radius:4px">'
-        + '<strong>Investigation acceptance: ' + _h(vs) + '.</strong> '
-        + nPass + ' of ' + total + ' acceptance criteria passing'
-        + (blocked.length
-            ? '; blocked by ' + blocked.map(function(n) {
-                return '<a href="#study-' + _h(n) + '">' + _h(n) + '</a>';
-              }).join(', ')
-            : '')
-        + '. <span class="muted small">code-computed from member-study verdicts</span></p>';
-    }
-    // ── SP4a: AC → study gating-matrix panel ───────────────────────────────
-    // Rows = acceptance criteria; columns = the gating study (linked to its
-    // section) + the computed result. Acceptance criteria with NO `study:` link
-    // are FLAGGED red ("no study linked — gap") — this is what surfaces e.g.
-    // chromosome-cycle-calibration's 5 unlinked criteria. Built synchronously
-    // from iset.acceptance_criteria (so the gap is visible even in a static
-    // snapshot), then ENRICHED from /api/linkage-index?investigation=<name>
-    // when the live endpoint is reachable. Tolerates the endpoint failing.
-    function _acResultBadge(result) {
-      var r = (result || '').toString().toLowerCase();
-      if (r === 'passing' || r === 'pass' || r === 'passed') return { glyph: '✅', bd: '#16a34a', bg: '#f0fdf4' };
-      if (r === 'failing' || r === 'fail' || r === 'failed') return { glyph: '⛔', bd: '#dc2626', bg: '#fef2f2' };
-      if (r === 'passing-with-caveats') return { glyph: '⚠', bd: '#f59e0b', bg: '#fffbeb' };
-      return { glyph: '◐', bd: '#94a3b8', bg: '#f8fafc' };  // in-progress / pending
-    }
-    function _acGatingMatrixHtml() {
-      var crits = (iset.acceptance_criteria || []).filter(function(c) {
-        return c && typeof c === 'object';
-      });
-      if (!crits.length) return '';
-      var computed = ((iset.computed_acceptance || {}).criteria) || [];
-      var nGap = 0;
-      var rows = crits.map(function(c, i) {
-        var study = (c.study || '').toString().trim();
-        var gap = !study;
-        if (gap) nGap += 1;
-        var result = (computed[i] && computed[i].result) || c.status || '';
-        var b = _acResultBadge(result);
-        var behavior = c.behavior || c.name || '(criterion ' + (i + 1) + ')';
-        var studyCell = gap
-          ? '<td style="color:#b91c1c;font-weight:600">⚠ no study linked — gap</td>'
-          : '<td><a href="#study-' + _h(study) + '">' + _h(study) + '</a></td>';
-        var resultCell = '<td id="acg-result-' + i + '" '
-          + 'style="white-space:nowrap"><span class="acg-pill" '
-          + 'style="display:inline-block;padding:1px 8px;border-radius:10px;border:1px solid '
-          + b.bd + ';background:' + b.bg + '">' + b.glyph + ' ' + _h(result || 'pending') + '</span></td>';
-        return '<tr id="acg-row-' + i + '" data-gap="' + (gap ? '1' : '0') + '" '
-          + 'style="' + (gap ? 'background:#fef2f2' : '') + '">'
-          + '<td style="padding-right:10px">' + _h(behavior) + '</td>'
-          + studyCell + resultCell + '</tr>';
-      }).join('');
-      var gapNote = nGap
-        ? '<p class="muted small" style="margin:6px 0 0 0;color:#b91c1c">'
-          + nGap + ' of ' + crits.length + ' acceptance criteria have no study linked (gaps) — '
-          + 'nothing gates them.</p>'
-        : '<p class="muted small" style="margin:6px 0 0 0">All ' + crits.length
-          + ' acceptance criteria are linked to a gating study.</p>';
-      return '<div class="ac-gating-matrix" id="ac-gating-matrix" '
-        + 'data-investigation="' + _h(iset.name || '') + '" '
-        + 'style="margin:12px 0;padding:12px 16px;background:#f0f9ff;'
-        + 'border:1px solid #bae6fd;border-left:4px solid #3b82f6;border-radius:6px">'
-        + '<strong>AC → study gating matrix</strong> '
-        + '<span class="muted small">which study gates each acceptance criterion · '
-        + '⚠ = no study linked (gap)</span>'
-        + '<table class="acg-table" style="width:100%;border-collapse:collapse;margin-top:8px;font-size:0.92em">'
-        + '<thead><tr style="text-align:left;border-bottom:1px solid #cbd5e1">'
-        + '<th style="padding:2px 10px 4px 0">Acceptance criterion</th>'
-        + '<th style="padding:2px 0 4px 0">Gating study</th>'
-        + '<th style="padding:2px 0 4px 0">Result</th></tr></thead>'
-        + '<tbody>' + rows + '</tbody></table>' + gapNote
-        + '</div>'
-        // Enrich from the live linkage-index endpoint when reachable. The panel
-        // already renders the gaps synchronously, so a failed/absent endpoint
-        // (e.g. a static snapshot) is harmless — we just keep the skeleton.
-        + '<script>(function(){try{'
-        + 'var panel=document.getElementById("ac-gating-matrix");'
-        + 'if(!panel)return;var inv=panel.getAttribute("data-investigation");if(!inv)return;'
-        + 'fetch("/api/linkage-index?investigation="+encodeURIComponent(inv))'
-        + '.then(function(r){return r.ok?r.json():null;})'
-        + '.then(function(d){if(!d||!d.ac_matrix||!d.ac_matrix.criteria)return;'
-        + 'd.ac_matrix.criteria.forEach(function(c,i){'
-        + 'var cell=document.getElementById("acg-result-"+i);if(!cell)return;'
-        + 'var res=(c.result||"pending");'
-        + 'var span=cell.querySelector(".acg-pill");if(span)span.textContent="• "+res;'
-        + '});})'
-        + '.catch(function(){});'
-        + '}catch(e){}})();</script>';
-    }
-
-    var verdictDagHtml = _verdictDagHtml();
-    var acceptanceNarrativeHtml = _acceptanceNarrativeHtml();
-    var acGatingMatrixHtml = _acGatingMatrixHtml();
 
     // Data-driven flags so the "How to read" guide describes only what this
     // investigation actually contains — no workspace-specific boilerplate.
@@ -5963,23 +4833,22 @@
       }
 
       var outcomes = latest.outcomes || {};
-      var passed = [], failed = [], partial = [];
+      var passed = [], failed = [];
       Object.keys(outcomes).forEach(function(name) {
         var res = (outcomes[name] || {}).result;
         if (res === 'PASS') passed.push(name);
         if (res === 'FAIL') failed.push(name);
-        if (res === 'PARTIAL') partial.push(name);
       });
       var calibration = openFollowups.filter(function(f){return f.kind === 'calibration_task';});
       var infra       = openFollowups.filter(function(f){return f.kind === 'infrastructure_fix';});
       var newWork     = openFollowups.filter(function(f){return f.kind === 'new';});
 
-      if (failed.length === 0 && partial.length === 0 && passed.length > 0) {
+      if (failed.length === 0 && passed.length > 0) {
         var enables = (s.pipeline_gate && s.pipeline_gate.enables) || [];
         return {
           label: 'Passed',
           cls:   'dec-passed',
-          passed: passed, failed: [], partial: [], blocks: [],
+          passed: passed, failed: [], blocks: [],
           next: enables.length
             ? 'Gate cleared. Next: ' + enables.join(', ')
             : 'Gate cleared. No declared downstream studies — review pipeline_gate.enables.'
@@ -6002,16 +4871,9 @@
           next: nextStr
         };
       }
-      if (partial.length > 0) {
-        return {
-          label: 'Partial', cls: 'dec-inprogress',
-          passed: passed, failed: failed, partial: partial, blocks: [],
-          next: partial.length + ' test(s) ran but did not meet the gate threshold — see findings.'
-        };
-      }
       return {
         label: 'In progress', cls: 'dec-inprogress',
-        passed: passed, failed: failed, partial: partial, blocks: [],
+        passed: passed, failed: failed, blocks: [],
         next: 'Continue analysing run outcomes.'
       };
     }
@@ -6054,17 +4916,6 @@
       return m ? m[1] : t;
     }
 
-    // Word-boundary preview (collapse whitespace, cut at a space, ellipsis).
-    // Unlike _firstSentence it never breaks mid-abbreviation ("E. coli").
-    function _previewText(text, maxLen) {
-      var t = String(text || '').replace(/\s+/g, ' ').trim();
-      if (t.length <= maxLen) return t;
-      var cut = t.slice(0, maxLen);
-      var sp = cut.lastIndexOf(' ');
-      if (sp > maxLen * 0.6) cut = cut.slice(0, sp);
-      return cut + '\u2026';
-    }
-
     // Verdict vocabulary for the collapsed control panel. An authored
     // `report.verdict` (one of the keys below) wins; otherwise we derive it
     // from the gate decision class so older studies still get a sensible badge.
@@ -6089,83 +4940,6 @@
       }
     }
 
-    // The reviewer-facing "Ran · Tests · Verdict" clarity strip. Prefers the
-    // server-computed `s.clarity_summary` (single-sourced from
-    // pbg_superpowers.study_status.study_clarity_summary) and falls back to an
-    // equivalent client-side computation so the strip renders even against an
-    // older server. Answers, at a glance: did this study run? were the tests
-    // run (pass/fail)? did it pass? (dnaa-replication reviewer feedback.)
-    function _clarityStrip(s) {
-      var cs = (s || {}).clarity_summary;
-      if (!cs) {
-        var runs = (s && s.runs) || [];
-        var done = function (r) {
-          var st = ((r && r.status) || '').toLowerCase();
-          return st === 'completed' || st === 'complete' || st === 'ran' || st === 'done';
-        };
-        var nC = runs.filter(done).length;
-        var ranStatus = nC ? 'ran'
-          : (runs.some(function (r) { return ((r && r.status) || '').toLowerCase() === 'running'; }) ? 'running' : 'not_run');
-        var tests = (s && (s.tests || s.behavior_tests || s.expected_behavior)) || [];
-        var latest = runs.length ? runs[runs.length - 1] : null;
-        var outc = (latest && latest.outcomes) || {};
-        var c = { pass: 0, fail: 0, skip: 0, pending: 0, total: tests.length };
-        tests.forEach(function (t) {
-          var o = outc[t.name];
-          var r = (((o && o.result) != null ? o.result : o) || '').toString().toLowerCase();
-          if (r === 'pass' || r === 'passed' || r === 'ok') c.pass++;
-          else if (r === 'fail' || r === 'failed' || r === 'error') c.fail++;
-          else if (r === 'skip' || r === 'skipped' || r === 'inconclusive' || r === 'partial') c.skip++;
-          else c.pending++;
-        });
-        var gate = ((s && s.gate_status) || '').toLowerCase();
-        var verd;
-        if (gate === 'passed') verd = { label: 'Passed', glyph: '✅', cls: 'v-pass' };
-        else if (gate === 'failed' || gate === 'failed_evaluation') verd = { label: 'Failing', glyph: '❌', cls: 'v-fail' };
-        else if (gate === 'blocked') verd = { label: 'Blocked', glyph: '⛔', cls: 'v-block' };
-        else if (gate === 'needs_calibration') verd = { label: 'Needs calibration', glyph: '🔄', cls: 'v-cal' };
-        else if (gate === 'in_progress') verd = { label: 'In progress', glyph: '🔶', cls: 'v-warn' };
-        else if (ranStatus !== 'ran') verd = { label: 'Not run', glyph: '○', cls: 'v-none' };
-        else if (c.fail) verd = { label: 'Failing', glyph: '❌', cls: 'v-fail' };
-        else if (c.pending && c.total) verd = { label: 'Tests pending', glyph: '⏳', cls: 'v-warn' };
-        else if (c.pass) verd = { label: 'Passed', glyph: '✅', cls: 'v-pass' };
-        else verd = { label: 'In progress', glyph: '🔶', cls: 'v-warn' };
-        var parts = [];
-        if (c.pass) parts.push(c.pass + '✓');
-        if (c.fail) parts.push(c.fail + '✗');
-        if (c.skip) parts.push(c.skip + '⏭');
-        if (c.pending) parts.push(c.pending + '⏳');
-        cs = {
-          ran: { status: ranStatus, label: ranStatus === 'ran' ? ('Ran · ' + nC + ' run' + (nC !== 1 ? 's' : '')) : (ranStatus === 'running' ? 'Running…' : 'Not run') },
-          tests: { label: c.total ? ('Tests: ' + parts.join(' · ')) : 'No tests declared', total: c.total, pending: c.pending },
-          verdict: verd, ambiguities: []
-        };
-      }
-      var ranOn = cs.ran.status === 'ran';
-      var pill = 'display:inline-block;padding:2px 9px;border-radius:9999px;font-size:0.78em;font-weight:600;margin-right:6px;';
-      var ranBg = ranOn ? 'background:#dbeafe;color:#1e40af' : (cs.ran.status === 'running' ? 'background:#fef3c7;color:#92400e' : 'background:#f1f5f9;color:#475569');
-      var tBg = (cs.tests.pending && cs.tests.total) ? 'background:#fef3c7;color:#92400e' : 'background:#f1f5f9;color:#334155';
-      var amb = (cs.ambiguities && cs.ambiguities.length)
-        ? '<span style="' + pill + 'background:#fef3c7;color:#92400e" title="' + _h(cs.ambiguities.join(' | ')) + '">⚠ ' + cs.ambiguities.length + ' clarity note' + (cs.ambiguities.length > 1 ? 's' : '') + '</span>'
-        : '';
-      // Spine A2: code-vs-authored gate divergence chip. The spine's
-      // study_verdict writes pipeline_gate.gate_evaluator (computed_gate_verdict)
-      // carrying diverges_from_authored. Mirrors the param-enforcement banner:
-      // surfaced beside the verdict, connected to its source (the coded
-      // evaluator), and labeled code-computed vs authored. Only shown on divergence.
-      var cgv = s && s.computed_gate_verdict;
-      var divChip = (cgv && cgv.diverges_from_authored)
-        ? '<span class="sp-gate-divergence" style="' + pill + 'background:#fffbeb;color:#92400e;border:1px solid #f59e0b" title="Code-computed verdict (spine study_verdict, not human-authored) disagrees with the authored gate_status.">⚠ code: ' + _h(cgv.result || '?') + ' · authored: ' + _h((s && s.gate_status) || '—') + '</span>'
-        : '';
-      return '<div class="sp-clarity" style="margin:6px 0 2px 0">'
-        + '<span style="' + pill + ranBg + '">' + (ranOn ? '▶' : (cs.ran.status === 'running' ? '…' : '○')) + ' ' + _h(cs.ran.label) + '</span>'
-        + '<span style="' + pill + tBg + '">' + _h(cs.tests.label) + '</span>'
-        + '<span class="sp-verdict ' + cs.verdict.cls + '" style="' + pill + '">' + cs.verdict.glyph + ' ' + _h(cs.verdict.label) + '</span>'
-        + divChip
-        + amb
-        + '</div>';
-    }
-
     // The collapsed study header — a scannable "scientific control panel".
     // Ordering follows the spec: identity → verdict → confidence/evidence →
     // objective → conclusion → metrics → insight → caveat. Every field is
@@ -6175,7 +4949,7 @@
     function _studyControlPanel(s, i, decision) {
       var rep = s.report || {};
       var v = _verdictBadge(s, decision);
-      var title = s.title || rep.title || _humanizeStudyName(s.name).title;
+      var title = rep.title || _humanizeStudyName(s.name).title;
       var objective  = rep.objective    || _firstSentence(rep.purpose)
                         || _firstSentence((s.purpose || {}).question);
       var conclusion = rep.conclusion   || _firstSentence(rep.result);
@@ -6225,7 +4999,6 @@
         +   '<span class="sp-title">' + _h(title) + '</span>'
         +   '<span class="sp-verdict ' + v.cls + '">' + v.emoji + ' ' + _h(v.label) + '</span>'
         + '</div>'
-        + _clarityStrip(s)
         + (objective ? '<div class="sp-objective">' + _h(objective) + '</div>' : '')
         + '<div class="sp-meta">' + meta.join(' · ') + '</div>'
         + ((conf || ev)
@@ -6238,7 +5011,8 @@
         + (chips.length ? '<div class="sp-metrics">' + chips.join('') + '</div>' : '')
         + (insight ? '<div class="sp-insight"><span class="sp-lbl">Insight</span> ' + _h(insight) + '</div>' : '')
         + (caveat  ? '<div class="sp-caveat"><span class="sp-lbl">Caveat</span> ' + _h(caveat) + '</div>' : '')
-        + '<span class="sp-expand-hint">▸ click to expand full study</span>';
+        + '<span class="sp-expand-hint">▸ click to expand full study</span>'
+        + '<span class="sp-collapse-hint">▴ click to collapse full study</span>';
     }
 
     // Review-readiness gates — mechanical checks that catch the classes of
@@ -6293,42 +5067,6 @@
       return {warns: warns, oks: oks};
     }
 
-    // SP3b: per-study feedback → action table for the report. Renders the
-    // pbg-supplied s.feedback_actions items that carry a proposed action
-    // (kind + proposed_text + open/applied status). Read-only — the report
-    // never computes the action. Returns '' when there are none.
-    function _renderReportFeedbackActions(s, slug) {
-      var fa = s && s.feedback_actions;
-      if (!fa || !fa.items || !fa.items.length) return '';
-      var withActions = fa.items.filter(function(it) { return it && it.action; });
-      if (!withActions.length) return '';
-      var badge = {
-        open:      'background:#fef3c7;color:#92400e;',
-        applied:   'background:#d1fae5;color:#065f46;',
-        dismissed: 'background:#f1f5f9;color:#64748b;',
-      };
-      var rows = withActions.map(function(it) {
-        var a = it.action || {};
-        var st = it.status || 'open';
-        return '<tr>'
-          + '<td><span style="' + (badge[st] || badge.open)
-          +   'padding:1px 8px;border-radius:9999px;font-size:0.82em;'
-          +   'font-family:ui-monospace,monospace">' + _h(st) + '</span></td>'
-          + '<td><code>' + _h(a.kind || '') + '</code>'
-          +   (a.target_finding ? ' <span class="muted small">→ ' + _h(a.target_finding) + '</span>' : '') + '</td>'
-          + '<td>' + _h(a.proposed_text || '') + '</td>'
-          + '<td class="muted small">' + _h((it.text || '').slice(0, 120)) + '</td>'
-          + '</tr>';
-      }).join('');
-      return '<div class="feedback-actions-panel" id="study-' + slug + '-feedback-actions" '
-        + 'style="margin:12px 0;padding:12px 16px;background:#f5f3ff;border:1px solid #8b5cf6;'
-        + 'border-left-width:5px;border-radius:6px;color:#3730a3">'
-        + '<strong>🔁 Feedback → action (' + withActions.length + ')</strong>'
-        + '<table class="readout-table" style="margin-top:8px"><thead><tr>'
-        + '<th>Status</th><th>Action</th><th>Proposed</th><th>From feedback</th>'
-        + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
-    }
-
     function v3StudySection(s, i, statusBadge, phaseBadge, parents, kids) {
       var slug = _h(s.name);
       var sid = {
@@ -6344,7 +5082,6 @@
         build:      'study-' + slug + '-build',
         reqs:       'study-' + slug + '-reqs',
         followups:  'study-' + slug + '-followups',
-        discovery:  'study-' + slug + '-discovery',
         limits:     'study-' + slug + '-limitations',
         refs:       'study-' + slug + '-refs',
       };
@@ -6360,12 +5097,6 @@
       var decide = s.conclusion_logic || {};
       var limitations = s.limitations || [];
       var followUps = s.follow_up_studies || [];
-      // Discovery Implications — alternate hypotheses, mechanism-update
-      // proposals, and the richer followup_study_proposals (successor to
-      // follow_up_studies). All fields optional; section hidden when empty.
-      var discImpl = (s.discovery_implications && typeof s.discovery_implications === 'object')
-                      ? s.discovery_implications : {};
-      var followupProposals = discImpl.followup_study_proposals || [];
       var findings = s.findings || [];
       var bib = (s.bibliography && s.bibliography.bib_keys) || [];
       var charts = (chartsByStudy && chartsByStudy[s.name]) || [];
@@ -6395,29 +5126,18 @@
                          || (decide.biological_validation && decide.biological_validation.length)
                          || s.conclusion || latestRun);
 
-      // Sub-nav links — order MUST mirror the report's section render order
-      // (the post-execution assembly below): embeds → summary → findings →
-      // conditions → ran → measured → charts → tests → model changes →
-      // build/fix → next steps → limitations → refs → decision (last).
+      // Sub-nav links — new section order, human-readable labels.
       var links = [];
+      links.push('<a href="#' + sid.summary + '">Summary</a>');
+      links.push('<a href="#' + sid.decision + '">Decision</a>');
       var nEmbedsForStudy = (embedsByStudy[s.name] || []).length;
       if (nEmbedsForStudy)
         links.push('<a href="#study-' + slug + '-embeds">Visualizations <span class="sn-count">' + nEmbedsForStudy + '</span></a>');
-      links.push('<a href="#' + sid.summary + '">Summary</a>');
-      if (findings.length)    links.push('<a href="#' + sid.findings + '">Findings <span class="sn-count">' + findings.length + '</span></a>');
-      var _hasDiscovery = !!(
-        (discImpl.alternate_hypotheses || []).length
-        || (discImpl.mechanism_update_proposals || []).length
-        || followupProposals.length
-        || (discImpl.resolved_uncertainties || []).length
-        || (discImpl.remaining_uncertainties || []).length);
-      if (_hasDiscovery) {
-        var _nDisc = (discImpl.alternate_hypotheses || []).length
-                   + (discImpl.mechanism_update_proposals || []).length
-                   + followupProposals.length;
-        links.push('<a href="#' + sid.discovery + '">Discovery implications'
-                   + (_nDisc ? ' <span class="sn-count">' + _nDisc + '</span>' : '') + '</a>');
-      }
+      if (findings.length)    links.push('<a href="#' + sid.takeaways + '">Key takeaways <span class="sn-count">' + findings.length + '</span></a>');
+      if (sims.length)        links.push('<a href="#' + sid.sims + '">What we ran <span class="sn-count">' + sims.length + '</span></a>');
+      if (charts.length)      links.push('<a href="#' + sid.charts + '">Charts <span class="sn-count">' + charts.length + '</span></a>');
+      if (readouts.length)    links.push('<a href="#' + sid.readouts + '">What we measured <span class="sn-count">' + readouts.length + '</span></a>');
+      if (tests.length)       links.push('<a href="#' + sid.tests + '">How we judge it <span class="sn-count">' + tests.length + '</span></a>');
       // Conditions sub-nav link: rendered when v4 ``conditions:`` exists.
       var _cond = (s.conditions && typeof s.conditions === 'object') ? s.conditions : null;
       var _nVar = (_cond && _cond.variants || []).length;
@@ -6427,16 +5147,11 @@
         links.push('<a href="#' + sid.conditions + '">Conditions ' +
                    (_condCount ? '<span class="sn-count">' + _condCount + '</span>' : '') + '</a>');
       }
-      if (sims.length)        links.push('<a href="#' + sid.sims + '">What we ran <span class="sn-count">' + sims.length + '</span></a>');
-      if (readouts.length)    links.push('<a href="#' + sid.readouts + '">What we measured <span class="sn-count">' + readouts.length + '</span></a>');
-      if (charts.length)      links.push('<a href="#' + sid.charts + '">Charts <span class="sn-count">' + charts.length + '</span></a>');
-      if (tests.length)       links.push('<a href="#' + sid.tests + '">How we judge it <span class="sn-count">' + tests.length + '</span></a>');
       if (hasBuild)           links.push('<a href="#' + sid.build + '">Model changes</a>');
       if (reqs.length)        links.push('<a href="#' + sid.reqs + '">What to build / fix <span class="sn-count">' + reqs.length + '</span></a>');
       if (followUps.length)   links.push('<a href="#' + sid.followups + '">Next steps <span class="sn-count">' + followUps.length + '</span></a>');
       if (limitations.length) links.push('<a href="#' + sid.limits + '">Limitations <span class="sn-count">' + limitations.length + '</span></a>');
       if (bib.length)         links.push('<a href="#' + sid.refs + '">Cited refs <span class="sn-count">' + bib.length + '</span></a>');
-      links.push('<a href="#' + sid.decision + '">Decision</a>');
 
       var dependsBrief = parents ? 'Depends on: ' + parents : '<em>Root study (no dependencies)</em>';
 
@@ -6473,7 +5188,6 @@
       // ── PLAIN-ENGLISH SUMMARY ─────────────────────────────────────────
       var summaryHtml = reportHtml
         + '<div id="' + sid.summary + '" class="study-summary">'
-        + '<h3>Overview</h3>'
         + '<p class="study-summary-text">' + _h(summaryText) + '</p>'
         + '<details class="tech-details"><summary>Purpose &amp; background (study design)</summary>'
         +   (purpose.question         ? '<div class="callout cl-blue"><strong>Question.</strong> ' + _multiline(purpose.question) + '</div>' : '')
@@ -6530,7 +5244,7 @@
         var takeawayItems = findings.map(function(f) {
           var status = f.status || 'novel';
           var glyph = ({confirms:'✓', partial:'◐', contradicts:'✗', novel:'◆'})[status] || '◆';
-          var stmt = (f.statement || (f.id||'').replace(/[-_]/g,' ')).split('\n')[0].split('.')[0];
+          var stmt = (f.statement || '').split('\n')[0].split('.')[0];
           if (stmt.length > 180) stmt = stmt.slice(0, 177) + '…';
           return '<li class="takeaway-' + status + '"><span class="takeaway-glyph">' + glyph + '</span> '
                + '<a href="#finding-' + _h(f.id || '') + '">' + _h(stmt) + '</a></li>';
@@ -6546,34 +5260,12 @@
         function _renderFinding(f) {
           var status = f.status || 'novel';
           var glyph = ({confirms:'✓', partial:'◐', contradicts:'✗', novel:'◆'})[status] || '◆';
-          var statusText = (f.kind === 'biological')
-            ? (status + ' literature')
-            : ({confirms:'confirmed', partial:'partial result', contradicts:'correction', novel:'new result'}[status] || status);
           var ev = f.evidence || {};
           var exp = f.expected || {};
           var ref = f.expert_reference || {};
-          var prov = f.provenance || {};
-          // Anchor a (possibly descriptive) test reference: the leading
-          // identifier token becomes the #<prefix>-<id> target, the full text
-          // stays as the link label so the reader can trace the value to its
-          // source (the test card) instead of reading dead code.  Only used
-          // for the TEST case: the report renders test cards (id="test-..."),
-          // so #test- anchors resolve.  The report has NO per-run rows, so run
-          // references are rendered as plain <code> (see _traceRun) — anchoring
-          // them would produce dead run-row links.  (The STUDY page does emit
-          // per-run rows and keeps its run anchors; that lives in study-detail.)
-          function _traceLink(prefix, val) {
-            var s = String(val);
-            var tok = (s.match(/^[A-Za-z0-9_.\-]+/) || [s])[0];
-            return '<a href="#' + prefix + '-' + _h(tok) + '"><code>' + _h(s) + '</code></a>';
-          }
-          // Run references in the report: plain <code>, no anchor (no target).
-          function _traceRun(val) {
-            return '<code>' + _h(String(val)) + '</code>';
-          }
           var techParts = [];
-          if (ev.from_test) techParts.push('test: ' + _traceLink('test', ev.from_test));
-          if (ev.from_run)  techParts.push('run: ' + _traceRun(ev.from_run));
+          if (ev.from_test) techParts.push('test: <code>' + _h(ev.from_test) + '</code>');
+          if (ev.from_run)  techParts.push('run: <code>' + _h(ev.from_run) + '</code>');
           if (ev.window)    techParts.push('window: ' + _h(ev.window));
           if (ev.smoking_gun) techParts.push('<details style="margin-top:4px"><summary>Smoking gun</summary><pre style="white-space:pre-wrap;font-size:0.85em;background:#fff;padding:6px;border-radius:3px">' + _h(ev.smoking_gun) + '</pre></details>');
           if (ev.discovered_during) techParts.push('discovered during: <code>' + _h(ev.discovered_during) + '</code>');
@@ -6602,42 +5294,6 @@
                     + '</div>';
           }
 
-          // Traceability block (spine B1): surface the finding's computed
-          // distance + provenance, connected to source. The headline computed
-          // number `divergence_factor` (how far observed is from expected) was
-          // previously dropped; render it prominently. Link the cited test +
-          // run, list provenance.run_ids (linked), and inline the cited test's
-          // pass_if band so the reader sees what "passing" meant without hunting.
-          var traceBits = [];
-          if (ev.divergence_factor != null) {
-            traceBits.push('<span class="finding-divergence" style="font-weight:600">×'
-              + _h(String(ev.divergence_factor)) + ' vs expected</span>');
-          }
-          if (ev.from_test) traceBits.push('test: ' + _traceLink('test', ev.from_test));
-          if (ev.from_run)  traceBits.push('run: ' + _traceRun(ev.from_run));
-          var runIds = prov.run_ids || [];
-          if (Array.isArray(runIds) && runIds.length) {
-            traceBits.push('runs: ' + runIds.map(function(rid) {
-              return '<code>' + _h(String(rid)) + '</code>';
-            }).join(', '));
-          }
-          // Inline the cited test's pass_if band (look it up by from_test).
-          var citedBand = '';
-          if (ev.from_test) {
-            var citedTok = (String(ev.from_test).match(/^[A-Za-z0-9_.\-]+/) || [''])[0];
-            var citedTest = (tests || []).filter(function(t){ return t && t.name === citedTok; })[0];
-            if (citedTest && (citedTest.pass_if || citedTest.expect)) {
-              citedBand = '<div class="pass_if-band muted small" style="margin-top:4px">judged against '
-                + '<code>pass_if: ' + _h(JSON.stringify(citedTest.pass_if || citedTest.expect)) + '</code></div>';
-            }
-          }
-          var traceBlock = (traceBits.length || citedBand)
-            ? '<div class="finding-traceability" style="margin-top:6px;padding:6px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;font-size:0.88em">'
-              + (traceBits.length ? '<span class="muted small">traceability:</span> ' + traceBits.join(' · ') : '')
-              + citedBand
-              + '</div>'
-            : '';
-
           var refBlock = '';
           if (ref.doc || ref.quote || ref.note) {
             var refBody = '';
@@ -6661,22 +5317,24 @@
                +   '<div class="finding-header">'
                +     '<span class="finding-status-glyph">' + glyph + '</span>'
                +     '<span class="finding-id">' + _h(f.id || '') + '</span>'
-               +     '<span class="finding-status-text">' + _h(statusText) + '</span>'
+               +     '<span class="finding-status-text">' + _h(status) + ' literature</span>'
                +   '</div>'
-               +   '<div class="finding-statement">' + _multiline(f.statement || (f.id ? f.id.replace(/[-_]/g,' ') : '(no statement)')) + '</div>'
+               +   '<div class="finding-statement">' + _multiline(f.statement || '(no statement)') + '</div>'
                +   evMain
                +   expMain
-               +   traceBlock
                +   (f.explanation ? '<div class="finding-explanation"><em>Why:</em> ' + _multiline(f.explanation) + '</div>' : '')
                +   sweepChart
                +   refBlock
                +   (f.next_action ? '<div class="finding-next"><strong>→ Next:</strong> ' + _multiline(f.next_action) + '</div>' : '')
-               +   (f.seeded_study ? '<div class="finding-seeded"><strong>→ seeded study:</strong> <a href="/studies/' + encodeURIComponent(f.seeded_study) + '">' + _h(f.seeded_study) + '</a></div>' : '')
                +   techDisclosure
                + '</div>';
         }
 
-        takeawaysHtml = '<div id="' + sid.findings + '" class="findings-section">'
+        takeawaysHtml = '<div id="' + sid.takeaways + '" class="takeaways-section">'
+          + '<h3>Key takeaways</h3>'
+          + '<ul class="takeaway-list">' + takeawayItems + '</ul>'
+          + '</div>'
+          + '<div id="' + sid.findings + '" class="findings-section">'
           + '<h3>Detailed findings</h3>'
           + Object.keys(groups).filter(function(k){return groups[k].length;}).map(function(k) {
               return '<h4 class="findings-group-header">' + kindHeader[k] + ' <span class="muted small">(' + groups[k].length + ')</span></h4>'
@@ -6750,16 +5408,18 @@
 
       // ── CHARTS (visualisations from runs.db) ─────────────────────────
       var chartsHtml = charts.length
-        ? '<div id="' + sid.charts + '">'
-          + '<h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
-          + '<span>Visualisations from the latest run</span>'
-          + '<button type="button" class="chart-refresh-btn" data-study="' + _h(s.name) + '"'
-          + ' onclick="window._refreshStudyViz(this)"'
-          + ' style="font-size:12px;padding:2px 10px;border-radius:6px;border:1px solid #cbd5e1;'
-          + 'background:#f8fafc;color:#334155;cursor:pointer;">↻ Refresh visualizations</button>'
-          + '<span class="chart-refresh-status muted small" style="margin-left:4px;"></span>'
-          + '</h3>'
-          + _renderChartCardsHtml(charts, slug)
+        ? '<div id="' + sid.charts + '"><h3>Visualisations from the latest run</h3>'
+          + charts.map(function(c) {
+              var capHtml = '';
+              if (c.caption) capHtml += '<div class="chart-caption">' + _h(c.caption) + '</div>';
+              if (c.simulations) capHtml +=
+                  '<div class="chart-simulations"><strong>Simulations behind this chart.</strong> '
+                  + _h(c.simulations) + '</div>';
+              if (c.interpretation) capHtml +=
+                  '<div class="chart-interpretation"><strong>What it means.</strong> '
+                  + _h(c.interpretation) + '</div>';
+              return '<div class="chart-card">' + c.svg + capHtml + '</div>';
+            }).join('')
           + '</div>'
         : '';
 
@@ -6788,100 +5448,30 @@
       var testsHtml = '';
       if (tests.length) {
         // Aggregate latest outcomes by test name so we can show PASS/FAIL pills.
-        // Merge BOTH the authored outcomes AND the run/outcome-spine
-        // evaluator-computed outcomes, so each test surfaces how it actually ran
-        // (measured_value, evaluated_by code/agent) and whether the code verdict
-        // agrees with the authored one (reconcile).
         var outcomeByTest = {};
         if (latestRun && latestRun.outcomes) {
-          Object.keys(latestRun.outcomes).forEach(function(k) { outcomeByTest[k] = Object.assign({}, latestRun.outcomes[k]); });
+          Object.keys(latestRun.outcomes).forEach(function(k) { outcomeByTest[k] = latestRun.outcomes[k]; });
         }
-        if (latestRun && latestRun.computed_outcomes) {
-          Object.keys(latestRun.computed_outcomes).forEach(function(k) {
-            var c = latestRun.computed_outcomes[k] || {};
-            var base = outcomeByTest[k] || {};
-            if (base.result == null && c.result != null) base.result = c.result;   // code verdict when no authored one
-            if (c.measured_value != null && base.measured_value == null) base.measured_value = c.measured_value;
-            if (c.evaluated_by) base.evaluated_by = c.evaluated_by;   // code | agent | needs_rerun
-            if (c.operator) base.operator = c.operator;
-            if (c.reconcile) base.reconcile = c.reconcile;            // agree | divergent | no_authored
-            if (base.detail == null && (c.detail || c.reason)) base.detail = c.detail || c.reason;
-            outcomeByTest[k] = base;
-          });
-        }
-        // At-a-glance summary so a reviewer doesn't have to count pills.
-        var _tc = { PASS: 0, FAIL: 0, PARTIAL: 0, SKIP: 0, PENDING: 0 };
-        tests.forEach(function(t) {
-          var o = outcomeByTest[t.name];
-          var r = o ? o.result : (t.status === 'gated' ? 'GATED' : 'PENDING');
-          if (r === 'PASS') _tc.PASS++; else if (r === 'FAIL') _tc.FAIL++;
-          else if (r === 'PARTIAL') _tc.PARTIAL++;
-          else if (r === 'SKIP') _tc.SKIP++; else _tc.PENDING++;
-        });
-        var _tcParts = [];
-        if (_tc.PASS) _tcParts.push(_tc.PASS + ' ✓ passed');
-        if (_tc.FAIL) _tcParts.push(_tc.FAIL + ' ✗ failed');
-        if (_tc.PARTIAL) _tcParts.push(_tc.PARTIAL + ' ◐ partial');
-        if (_tc.SKIP) _tcParts.push(_tc.SKIP + ' ⏭ skipped');
-        if (_tc.PENDING) _tcParts.push(_tc.PENDING + ' ⏳ pending');
-        var _tcSummary = _tcParts.length ? (' — ' + _tcParts.join(' · ')) : '';
-        testsHtml = '<div id="' + sid.tests + '"><h3>How do we judge success? <span class="muted small">(' + tests.length + ' tests' + _tcSummary + ')</span></h3>'
-          + '<p class="muted small" style="margin:0 0 8px 0">Each test makes a specific scientific claim with a machine-checkable criterion (<code>measure</code> + <code>pass_if</code>). Tests are now <strong>evaluated by code against the run</strong> (the run/outcome spine: RunReader → evaluator): the pill shows the result, and the evidence line shows the <em>measured value</em>, whether it was computed by <em>code</em> or routed to an <em>agent</em>, and whether the code verdict <em>agrees</em> with the authored one (reconcile). <span class="muted">⏳ pending = the study hasn\'t run yet.</span> Technical assertion + the exact evaluator are under "Technical details".</p>'
+        testsHtml = '<div id="' + sid.tests + '"><h3>How do we judge success? <span class="muted small">(' + tests.length + ' tests)</span></h3>'
+          + '<p class="muted small" style="margin:0 0 8px 0">Each test makes a specific scientific claim. The latest result (pass/fail) appears as a pill when we have evidence; the technical assertion is hidden by default.</p>'
           + tests.map(function(t) {
               var name = t.name || '(unnamed)';
               var cls = t.classification || 'unclassified';
               var out = outcomeByTest[name];
               var result = out ? out.result : (t.status === 'gated' ? 'GATED' : 'PENDING');
-              var resBg = result === 'PASS' ? '#d1fae5' : (result === 'FAIL' ? '#fee2e2' : (result === 'SKIP' ? '#fef3c7' : (result === 'PARTIAL' ? '#fde68a' : '#f1f5f9')));
-              var resFg = result === 'PASS' ? '#065f46' : (result === 'FAIL' ? '#991b1b' : (result === 'SKIP' ? '#92400e' : (result === 'PARTIAL' ? '#92400e' : '#475569')));
-              var resGlyph = result === 'PASS' ? '✓' : (result === 'FAIL' ? '✗' : (result === 'PARTIAL' ? '◐' : '⏳'));
+              var resBg = result === 'PASS' ? '#d1fae5' : (result === 'FAIL' ? '#fee2e2' : (result === 'SKIP' ? '#fef3c7' : '#f1f5f9'));
+              var resFg = result === 'PASS' ? '#065f46' : (result === 'FAIL' ? '#991b1b' : (result === 'SKIP' ? '#92400e' : '#475569'));
+              var resGlyph = result === 'PASS' ? '✓' : (result === 'FAIL' ? '✗' : '⏳');
               // Claim: the English description, first sentence.
               var claim = (t.description || t.en || '').split('\n')[0].split('. ')[0];
               if (claim.length > 220) claim = claim.slice(0, 217) + '…';
               if (claim && claim.charAt(claim.length - 1) !== '.' && claim.charAt(claim.length - 1) !== '?') claim += '.';
-              // Evidence (spine B3): render the code-computed outcome as a
-              // styled row — measured_value + operator + evaluated_by in a
-              // CODE-COMPUTED chip, kept visually SEPARATE from the
-              // human-authored outcome (its own chip), with a prominent
-              // reconcile:divergent badge and a link to the run that produced
-              // the value + the pass_if band it was judged against. No more
-              // raw merged k:v dump (which blended authored + computed).
-              var authoredOut = (latestRun && latestRun.outcomes) ? latestRun.outcomes[name] : null;
-              var computedOut = (latestRun && latestRun.computed_outcomes) ? latestRun.computed_outcomes[name] : null;
-              var runIdent = latestRun ? (latestRun.run_id || latestRun.name || '') : '';
+              // Evidence: extra fields from the outcome (skip 'result' itself).
               var evidence = '';
-              if (computedOut || authoredOut) {
-                var co = computedOut || {};
-                var mv = co.measured_value;
-                var mvStr = (mv == null) ? '—' : (typeof mv === 'object' ? JSON.stringify(mv) : String(mv));
-                if (mvStr.length > 220) mvStr = mvStr.slice(0, 217) + '…';
-                var codeBits = [];
-                if (co.result != null) codeBits.push('<strong>' + _h(String(co.result)) + '</strong>');
-                if (co.operator) codeBits.push('op <code>' + _h(String(co.operator)) + '</code>');
-                if (co.evaluated_by) codeBits.push('by <code>' + _h(String(co.evaluated_by)) + '</code>');
-                var codeChip = computedOut
-                  ? '<span class="outcome-chip outcome-chip-computed" style="display:inline-block;padding:3px 7px;border-radius:4px;background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;font-size:0.85em"><span class="muted">code computed</span> ' + codeBits.join(' · ') + '</span>'
-                  : '';
-                var authoredChip = (authoredOut && authoredOut.result != null)
-                  ? ' <span class="outcome-chip outcome-chip-authored" style="display:inline-block;padding:3px 7px;border-radius:4px;background:#f8fafc;border:1px solid #e2e8f0;color:#475569;font-size:0.85em"><span class="muted">authored</span> <strong>' + _h(String(authoredOut.result)) + '</strong></span>'
-                  : '';
-                var divBadge = (co.reconcile === 'divergent')
-                  ? ' <span class="reconcile-divergent" style="display:inline-block;padding:3px 7px;border-radius:4px;background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;font-weight:600;font-size:0.85em">⚠ reconcile: divergent</span>'
-                  : '';
-                var runLink = runIdent
-                  ? ' <span class="muted small">from run <code>' + _h(runIdent) + '</code></span>'
-                  : '';
-                var bandLine = t.pass_if
-                  ? '<div class="pass_if-band muted small" style="margin-top:3px">judged against <code>pass_if: ' + _h(JSON.stringify(t.pass_if)) + '</code></div>'
-                  : '';
-                var detailLine = (co.detail || co.reason)
-                  ? '<div class="muted small" style="margin-top:3px">' + _h(String(co.detail || co.reason)) + '</div>'
-                  : '';
-                evidence = '<div class="computed-outcome-row">'
-                  + (computedOut ? '<div><strong>measured_value:</strong> <code>' + _h(mvStr) + '</code></div>' : '')
-                  + '<div style="margin-top:3px">' + codeChip + authoredChip + divBadge + runLink + '</div>'
-                  + bandLine + detailLine
-                  + '</div>';
+              if (out) {
+                var bits = Object.keys(out).filter(function(k){return k !== 'result';})
+                  .map(function(k){return _h(k) + ': ' + _h(String(out[k]));});
+                if (bits.length) evidence = bits.join(' · ');
               }
               var techBits = [];
               if (t.measure) techBits.push('Measure: <code>' + _h(JSON.stringify(t.measure)) + '</code>');
@@ -6904,7 +5494,7 @@
               if (t.calibration_anchor) techBits.push('Calibration anchor: ⚠️ <code>' + _h(JSON.stringify(t.calibration_anchor)) + '</code>');
               var techDisc = techBits.length ? '<details class="tech-details"><summary>Technical details</summary>' + techBits.join('<br>') + '</details>' : '';
 
-              return '<div class="test-card test-classification-' + _h(cls) + '" id="test-' + _h(name) + '">'
+              return '<div class="test-card test-classification-' + _h(cls) + '">'
                    +   '<div class="test-header">'
                    +     '<span style="background:' + resBg + ';color:' + resFg + ';padding:2px 10px;border-radius:9999px;font-size:0.78em;font-weight:600">' + resGlyph + ' ' + _h(result) + '</span>'
                    +     '<span class="test-classification">' + _h(cls) + '</span>'
@@ -7018,128 +5608,6 @@
             }).join('')
           + '</div>'
         : '';
-
-      // ── DISCOVERY IMPLICATIONS ───────────────────────────────────────
-      // Turns the study's results into resolved/remaining uncertainties,
-      // alternate hypotheses, mechanism-update proposals, and selectable
-      // follow-up study proposals. Sits after the evidence/follow-ups and
-      // before the Decide box. Each follow-up proposal carries an
-      // "➕ Add to investigation" button that seeds a child study node.
-      var discoveryHtml = '';
-      if (_hasDiscovery) {
-        var diBits = [];
-
-        // Resolved / remaining uncertainties — two short lists.
-        var resolved = discImpl.resolved_uncertainties || [];
-        var remaining = discImpl.remaining_uncertainties || [];
-        if (resolved.length || remaining.length) {
-          var uncBits = [];
-          if (resolved.length) {
-            uncBits.push('<div class="di-unc di-unc-resolved"><h4>✓ Resolved uncertainties</h4><ul>'
-              + resolved.map(function(u){ return '<li>' + _multiline(typeof u === 'string' ? u : JSON.stringify(u)) + '</li>'; }).join('')
-              + '</ul></div>');
-          }
-          if (remaining.length) {
-            uncBits.push('<div class="di-unc di-unc-remaining"><h4>● Remaining uncertainties</h4><ul>'
-              + remaining.map(function(u){ return '<li>' + _multiline(typeof u === 'string' ? u : JSON.stringify(u)) + '</li>'; }).join('')
-              + '</ul></div>');
-          }
-          diBits.push('<div class="di-uncertainties">' + uncBits.join('') + '</div>');
-        }
-
-        // Alternate hypotheses.
-        var altH = discImpl.alternate_hypotheses || [];
-        if (altH.length) {
-          diBits.push('<div class="di-group"><h4>Alternate hypotheses <span class="muted small">(' + altH.length + ')</span></h4>'
-            + altH.map(function(h) {
-                var evFor = (h.evidence_for || []).length;
-                var evAgainst = (h.evidence_against || []).length;
-                var disc = h.discriminating_observables || [];
-                var rows = [];
-                if (h.why_plausible) rows.push('<div class="di-alt-why">' + _multiline(h.why_plausible) + '</div>');
-                rows.push('<div class="di-alt-ev"><span class="di-ev di-ev-for">▲ ' + evFor + ' for</span>'
-                  + '<span class="di-ev di-ev-against">▼ ' + evAgainst + ' against</span></div>');
-                if (disc.length) {
-                  rows.push('<div class="di-alt-disc"><span class="di-lbl">Discriminating observables:</span> '
-                    + disc.map(function(d){ return '<code>' + _h(d) + '</code>'; }).join(', ') + '</div>');
-                }
-                var elems = h.mechanism_elements_affected || [];
-                if (elems.length) {
-                  rows.push('<div class="di-alt-elems"><span class="di-lbl">Mechanism elements:</span> '
-                    + elems.map(function(e){ return '<code>' + _h(e) + '</code>'; }).join(', ') + '</div>');
-                }
-                return '<div class="di-alt-card">'
-                  + '<div class="di-alt-stmt"><strong>' + _h(h.statement || '(untitled hypothesis)') + '</strong></div>'
-                  + rows.join('')
-                  + '</div>';
-              }).join('')
-            + '</div>');
-        }
-
-        // Mechanism update proposals.
-        var mech = discImpl.mechanism_update_proposals || [];
-        if (mech.length) {
-          diBits.push('<div class="di-group"><h4>Mechanism update proposals <span class="muted small">(' + mech.length + ')</span></h4>'
-            + mech.map(function(m) {
-                var ut = (m.update_type || 'revise');
-                var badge = m.requires_expert_approval
-                  ? '<span class="di-approval-badge">needs expert approval</span>' : '';
-                var cc = m.confidence_change
-                  ? '<span class="di-conf-change">Δconfidence: ' + _h(String(m.confidence_change)) + '</span>' : '';
-                return '<div class="di-mech-card">'
-                  + '<div class="di-mech-head">'
-                  +   '<code class="di-mech-target">' + _h(m.mechanism_node_or_edge || '(unspecified)') + '</code>'
-                  +   '<span class="di-update-chip di-update-' + _h(ut) + '">' + _h(ut) + '</span>'
-                  +   cc + badge
-                  + '</div>'
-                  + (m.rationale ? '<div class="di-mech-rationale">' + _multiline(m.rationale) + '</div>' : '')
-                  + '</div>';
-              }).join('')
-            + '</div>');
-        }
-
-        // Follow-up study proposals — each a selectable card with an
-        // "➕ Add to investigation" button (seeds a new child study node).
-        if (followupProposals.length) {
-          diBits.push('<div class="di-group"><h4>Follow-up study proposals <span class="muted small">(' + followupProposals.length + ')</span></h4>'
-            + '<p class="muted small">Select a proposal to spawn a new study node in the investigation graph.</p>'
-            + followupProposals.map(function(p, pi) {
-                var gain = (p.expected_information_gain || '').toLowerCase();
-                var gainChip = gain ? '<span class="di-gain-chip di-gain-' + _h(gain) + '">gain: ' + _h(gain) + '</span>' : '';
-                var typeChip = p.study_type ? '<span class="di-type-chip">' + _h(p.study_type) + '</span>' : '';
-                var trigChip = p.source_trigger ? '<span class="di-trigger-chip">' + _h(p.source_trigger) + '</span>' : '';
-                var targets = p.target_mechanism_elements || [];
-                var prio = p.priority ? '<span class="di-prio-chip">priority: ' + _h(String(p.priority)) + '</span>' : '';
-                // No custom "➕ Add to investigation" button: the enclosing
-                // Discovery implications section (id="study-<slug>-discovery")
-                // is a standard inline-feedback host, so reviewers annotate it
-                // with the 💬 affordance — reliable in the downloaded report.
-                return '<div class="di-fup-card">'
-                  + '<div class="di-fup-head">'
-                  +   '<strong class="di-fup-title">' + _h(p.title || '(untitled proposal)') + '</strong>'
-                  +   typeChip + trigChip + gainChip + prio
-                  + '</div>'
-                  + (p.proposed_experiment ? '<div class="di-fup-exp">' + _multiline(p.proposed_experiment) + '</div>' : '')
-                  + (targets.length ? '<div class="di-fup-targets"><span class="di-lbl">Targets:</span> '
-                      + targets.map(function(t){ return '<code>' + _h(t) + '</code>'; }).join(', ') + '</div>' : '')
-                  + '</div>';
-              }).join('')
-            + '</div>');
-        }
-
-        // Addressed mechanism uncertainty (provenance line, optional).
-        var addressed = discImpl.mechanism_uncertainty_addressed || [];
-        if (addressed.length) {
-          diBits.push('<div class="di-addressed muted small"><span class="di-lbl">Mechanism uncertainty addressed:</span> '
-            + addressed.map(function(a){ return _h(typeof a === 'string' ? a : JSON.stringify(a)); }).join('; ') + '</div>');
-        }
-
-        discoveryHtml = '<div id="' + sid.discovery + '" class="discovery-implications">'
-          + '<h3>Discovery implications</h3>'
-          + '<p class="muted small">Where this study\'s results leave the mechanism model — and what to investigate next.</p>'
-          + diBits.join('')
-          + '</div>';
-      }
 
       // ── LIMITATIONS ──────────────────────────────────────────────────
       var limitsHtml = limitations.length
@@ -7358,25 +5826,16 @@
               //                        leaked through because the chart
               //                        div was sized for the chart but
               //                        not the wrapped legend rows.
-              //   min-height:1200px  — under-measured iframes still show
-              //                        enough vertical space for typical
-              //                        multi-panel figures (e.g. 2×3 grid
-              //                        cell_mass / growth_rate / RNA /
-              //                        ribosome activity panels — these
-              //                        rendered at ~1280 px tall and the
-              //                        previous 720 px floor clipped them).
-              //                        The _fitEmbed walk extends to svg/
-              //                        img/canvas (see below) and uses
-              //                        img.naturalHeight to pre-measure
-              //                        before the browser has laid out
-              //                        the data: URL, so iframes grow
-              //                        correctly — this floor is the
-              //                        safety net for first-paint before
-              //                        any timers fire.
+              //   min-height:520px   — under-measured iframes still show
+              //                        enough vertical space for the
+              //                        typical Plotly chart (340 chart
+              //                        area + 6-row wrapped legend ≈
+              //                        508 px). _fitEmbed grows beyond
+              //                        this when scrollHeight is larger.
               var iframe = '<iframe srcdoc="' + escaped + '" '
                 + 'class="embed-frame" onload="_wireEmbed(this)" '
                 + 'scrolling="no" '
-                + 'style="width:100%;min-height:1200px;border:0;display:block;overflow:hidden' + _hStyle + '" '
+                + 'style="width:100%;min-height:520px;border:0;display:block;overflow:hidden' + _hStyle + '" '
                 + 'title="' + _h(emb.name) + '"></iframe>';
               if (isStale) {
                 // Collapsed by default; re-fit on expand.
@@ -7438,13 +5897,6 @@
           + '</ul></div>';
       }
 
-      // Spine A3: readiness panel placeholder. Populated after render by
-      // _populateReadinessPanels(), which fetches /api/report-lint ONCE per
-      // report and keys the deterministic linter findings by study. Mirrors
-      // the param-enforcement banner: surfaced per study, connected to its
-      // source (the linter), labeled code-computed. Empty until populated.
-      var readinessHtml = '<div class="study-readiness-panel" id="study-' + slug + '-readiness" data-study="' + _h(slug) + '"></div>';
-
       // Imported expert feedback (expert-feedback B.1). Shows the reviewer's
       // own annotations back, in-context per study, so the loop closes: the
       // next report makes clear what was said and lets the team show it's
@@ -7456,7 +5908,7 @@
           '<div class="expert-feedback-panel" id="study-' + slug + '-imported-feedback" '
           + 'style="margin:12px 0;padding:12px 16px;background:#eff6ff;border:1px solid #3b82f6;'
           + 'border-left-width:5px;border-radius:6px;color:#1e3a5f">'
-          + '<strong>💬 Reviewer feedback (' + fb.length + ')</strong>'
+          + '<strong>💬 Expert feedback (' + fb.length + ')</strong>'
           + '<ul style="list-style:none;margin:8px 0 0;padding:0">'
           + fb.map(function(a) {
               var who = _h(a.author || 'reviewer');
@@ -7470,12 +5922,6 @@
             }).join('')
           + '</ul></div>';
       }
-
-      // SP3b: feedback → action table. Read-only render of the pbg-supplied
-      // s.feedback_actions (open feedback items that have a proposed action +
-      // its kind / proposed_text / open-applied status). The report NEVER
-      // computes the action — it renders what study_feedback_actions returns.
-      feedbackHtml += _renderReportFeedbackActions(s, slug);
 
       // Status-drift banner (round-2 friction #2). When a stored status axis
       // (or a "planning" headline) contradicts what actually ran, say so — the
@@ -7533,7 +5979,6 @@
           +   '<div class="study-planning-pill">PLANNING — not yet run</div>'
           +   statusDriftHtml     // ⚠ status out of date vs runs (#2)
           +   enforcementHtml     // ⚠ declared params not applied (D.2)
-          +   readinessHtml       // ✓/⚠ lint readiness panel (A3)
           +   reviewHtml          // ⚠ review-readiness gates (duration / param-vs-reference)
           +   feedbackHtml        // 💬 imported expert feedback (B.1)
           +   summaryHtml         // Question / purpose
@@ -7546,7 +5991,6 @@
           +   '<details class="study-technical-fold"><summary>Technical context (model changes · implementation tasks · follow-ups · limitations · refs)</summary>'
           +     reqsHtml          // Implementation requirements
           +     followUpsHtml     // Follow-ups
-          +     discoveryHtml     // Discovery implications
           +     limitsHtml        // Limitations
           +     refsHtml          // References
           +   '</details>'
@@ -7566,27 +6010,25 @@
         +   subNav
         +   statusDriftHtml     // ⚠ status out of date vs runs (#2)
         +   enforcementHtml     // ⚠ declared params not applied (D.2)
-        +   readinessHtml       // ✓/⚠ lint readiness panel (A3)
         +   reviewHtml          // ⚠ review-readiness gates (duration / param-vs-reference)
         +   feedbackHtml        // 💬 imported expert feedback (B.1)
         +   biologyGlanceHtml   // 0. Biology-at-a-glance
         +   mechanismNarrativeHtml  // 0a. Mechanism narrative (7 framework fields)
-        +   summaryHtml         // 1. Plain-English summary (explanation leads, before charts)
-        +   embedsHtml          // 1a. Embedded visualizations (after the explanation)
+        +   embedsHtml          // 0b. Embedded preview HTMLs
+        +   summaryHtml         // 1. Plain-English summary
+        +   decisionHtml        // 2. Decision box
         +   expertReviewHtml    // 2b. Pre-run expert review
-        +   takeawaysHtml       // 3 + 4. Detailed findings
-        +   discoveryHtml       // Discovery implications (directly under the findings)
-        +   conditionsHtml      // Conditions (what we set up) — grouped with the runs
-        +   simsHtml            // What did/will we run
-        +   readoutsHtml        // What did/will we measure (above visualisations)
+        +   takeawaysHtml       // 3 + 4. Key takeaways + findings
+        +   simsHtml            // 5. What we ran
         +   chartsHtml          //    + Visualisations
+        +   readoutsHtml        // 6. What we measured
         +   testsHtml           // 7. How we judge success
+        +   conditionsHtml      // 7b. Conditions
         +   buildHtml           // 8. Model changes
         +   reqsHtml            // 9. What to build/fix
         +   followUpsHtml       // 10. Next steps
         +   limitsHtml          // 11. Limitations
         +   refsHtml            // 12. References
-        +   decisionHtml        // Decision: can we move to the next study?
         + '</section>'
         + '</details>';
     }
@@ -7944,6 +6386,7 @@
         +   (v4Insight ? '<div class="sp-insight"><span class="sp-lbl">Insight</span> ' + _h(v4Insight) + '</div>' : '')
         +   (v4Caveat  ? '<div class="sp-caveat"><span class="sp-lbl">Caveat</span> '   + _h(v4Caveat)  + '</div>' : '')
         +   '<span class="sp-expand-hint">▸ click to expand full study</span>'
+        +   '<span class="sp-collapse-hint">▴ click to collapse full study</span>'
         + '</summary>';
 
       // Dropped chrome on the v4 expanded section to remove three forms
@@ -8053,33 +6496,17 @@
        entries that fed the top-of-report "Acceptance criteria" section
        (now removed). The acceptance_criteria field on investigation.yaml
        still exists in the schema; per-study behavior_tests +
-       conclusion_verdicts carry the same signal more actionably.
-       The defensive `_asList` coercion this fix added at the (now-deleted)
-       render site is superseded; the durable guard lives server-side in
-       `_coerce_list_field`. `_asList` is kept as a reusable helper. */
+       conclusion_verdicts carry the same signal more actionably. */
     var acceptance = '';
 
-    // ── Collect the union of references across the investigation + studies ──
-    // Sources: study expected_behavior[].cites + bibliography.bib_keys (bib keys),
-    // the investigation's declared inputs.references (iset.references, bib keys),
-    // and each study's `references:` (bib-key strings → looked up in papers.bib;
-    // rich {name,url,role} entries → rendered as standalone sources).
+    // ── Collect the union of bib keys cited across all studies + iset ──
     var citedKeys = new Set();
-    var extraSources = [];
-    function _collectRef(r) {
-      if (typeof r === 'string') { if (r) citedKeys.add(r); return; }
-      if (!r || typeof r !== 'object') return;
-      if (r.key || r.bib_key) { citedKeys.add(r.key || r.bib_key); return; }
-      if (r.name || r.url || r.path) extraSources.push(r);
-    }
-    (iset.references || []).forEach(_collectRef);
     specs.forEach(function(s) {
       (s.expected_behavior || []).forEach(function(b) {
         (b.cites || []).forEach(function(k) { citedKeys.add(k); });
       });
       var bib = (s.bibliography && s.bibliography.bib_keys) || [];
       bib.forEach(function(k) { citedKeys.add(k); });
-      (s.references || []).forEach(_collectRef);
     });
     var orderedCited = Array.from(citedKeys).sort();
     var referencesHtml = orderedCited.map(function(key) {
@@ -8105,20 +6532,6 @@
            + doiLink + urlLink
            + (e.note ? '<div class="muted small">Note: ' + _h(e.note) + '</div>' : '')
            + '</li>';
-    }).join('');
-    // Rich study/investigation sources (name + online link + role) that aren't
-    // papers.bib keys — de-duped by name+url, appended to the References list.
-    var _seenSrc = {};
-    referencesHtml += extraSources.filter(function (r) {
-      var k = (r.name || '') + '|' + (r.url || r.path || '');
-      if (_seenSrc[k]) return false; _seenSrc[k] = 1; return true;
-    }).map(function (r) {
-      var label = _h(r.name || r.url || r.path || 'source');
-      var head = r.url
-        ? '<a href="' + _h(r.url) + '" target="_blank" rel="noopener">' + label + '</a> <small class="muted">↗</small>'
-        : '<strong>' + label + '</strong>';
-      return '<li class="ref-entry">' + head
-           + (r.role ? '<div class="muted small">' + _h(r.role) + '</div>' : '') + '</li>';
     }).join('');
 
     // ── Build the TOC (sidebar nav) entries from the ordered studies ────
@@ -8158,38 +6571,6 @@
       + '.topbar a{font-size:0.83em;color:#334155;text-decoration:none;padding:4px 12px;border-radius:9999px;background:#f1f5f9;white-space:nowrap}'
       + '.topbar a:hover{background:#e2e8f0;color:#0f172a}'
       + '.topbar a.active{background:#dbeafe;color:#1e40af;font-weight:600}'
-      /* iset switcher dropdown at the right end of the topbar (margin-left:auto
-         pushes it past the section links). Calls /api/investigation-registry
-         to list peer dashboards; click a peer row to navigate. Trigger styled
-         like the section-anchor chips but with a subtle distinguishing border
-         so it doesn't look like just another anchor. */
-      + '.tb-iset-switcher{margin-left:auto;display:inline-flex;align-items:center;gap:5px;'
-      +     'font:inherit;font-size:0.83em;color:#334155;'
-      +     'padding:4px 12px;border-radius:9999px;background:#fff;border:1px solid #cbd5e1;cursor:pointer;'
-      +     'white-space:nowrap}'
-      + '.tb-iset-switcher:hover{background:#f1f5f9;border-color:#94a3b8}'
-      + '.tb-iset-switcher[aria-expanded="true"]{background:#dbeafe;border-color:#3b82f6;color:#1e40af}'
-      + '.tb-iset-switcher-icon{font-size:1.05em;line-height:1}'
-      + '.tb-iset-switcher-arrow{font-size:0.7em;color:#94a3b8;margin-left:1px}'
-      + '.tb-iset-menu{position:fixed;z-index:200;min-width:320px;max-width:480px;max-height:70vh;overflow-y:auto;'
-      +     'background:#fff;border:1px solid #cbd5e1;border-radius:8px;'
-      +     'box-shadow:0 8px 24px rgba(0,0,0,0.12);padding:6px 0}'
-      + '.tb-iset-menu[hidden]{display:none}'
-      + '.tb-iset-menu-section{padding:6px 14px 4px;font-size:0.7em;font-weight:700;letter-spacing:0.05em;'
-      +     'text-transform:uppercase;color:#94a3b8}'
-      + '.tb-iset-menu-row{display:flex;align-items:center;gap:8px;padding:7px 14px;cursor:pointer;border:0;background:none;'
-      +     'width:100%;text-align:left;font:inherit;color:#0f172a;font-size:0.86em}'
-      + '.tb-iset-menu-row:hover{background:#f1f5f9}'
-      + '.tb-iset-menu-row-current{background:#dbeafe;color:#1e40af;cursor:default}'
-      + '.tb-iset-menu-row-current:hover{background:#dbeafe}'
-      + '.tb-iset-menu-slug{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
-      + '.tb-iset-menu-pill{font-size:0.7em;font-weight:600;padding:2px 7px;border-radius:9999px;'
-      +     'background:#f1f5f9;color:#64748b;white-space:nowrap}'
-      + '.tb-iset-menu-pill-here{background:#dcfce7;color:#166534}'
-      + '.tb-iset-menu-pill-running{background:#fef9c3;color:#854d0e}'
-      + '.tb-iset-menu-pill-dormant{background:#f1f5f9;color:#64748b}'
-      + '.tb-iset-menu-empty,.tb-iset-menu-error{padding:10px 14px;font-size:0.82em;color:#64748b}'
-      + '.tb-iset-menu-error{color:#991b1b}'
       + '.content{max-width:none;margin:0;padding:24px 40px}'
       // Anchor targets clear the sticky bar when jumped to.
       + '.content [id]{scroll-margin-top:60px}'
@@ -8250,56 +6631,11 @@
       + '.fu-why,.fu-unblocks,.fu-acc,.fu-hyp{margin:4px 0 0 0;font-size:0.92em;line-height:1.45}'
       + '.fu-hyp{padding:6px 10px;background:#fff;border-radius:3px;border:1px dashed #cbd5e1}'
       + '.fu-acc ul{margin:2px 0 0 18px;padding:0}'
-      // discovery implications — alternate hypotheses, mechanism updates,
-      // selectable follow-up proposals.
-      + '.discovery-implications{margin:0 0 24px 0;padding:14px 16px;background:#fdfcff;border:1px solid #ddd6fe;border-radius:8px}'
-      + '.discovery-implications>h3{margin-top:0}'
-      + '.di-group{margin:14px 0 0 0}'
-      + '.di-group>h4{margin:0 0 6px 0;font-size:0.95em}'
-      + '.di-uncertainties{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px}'
-      + '.di-unc{flex:1;min-width:220px;padding:8px 12px;border-radius:6px;font-size:0.9em}'
-      + '.di-unc>h4{margin:0 0 4px 0;font-size:0.85em}'
-      + '.di-unc ul{margin:0 0 0 18px;padding:0}'
-      + '.di-unc-resolved{background:#ecfdf5;border:1px solid #a7f3d0}'
-      + '.di-unc-remaining{background:#fffbeb;border:1px solid #fde68a}'
-      + '.di-alt-card,.di-mech-card,.di-fup-card{padding:10px 14px;margin:8px 0;border:1px solid #e2e8f0;border-left:4px solid #a78bfa;border-radius:4px;background:#fff;font-size:0.93em}'
-      + '.di-alt-stmt{margin-bottom:4px}'
-      + '.di-alt-why{color:#475569;margin:4px 0;line-height:1.45}'
-      + '.di-alt-ev{display:flex;gap:8px;margin:4px 0}'
-      + '.di-ev{font-size:0.78em;padding:1px 8px;border-radius:9999px}'
-      + '.di-ev-for{background:#dcfce7;color:#166534}'
-      + '.di-ev-against{background:#fee2e2;color:#991b1b}'
-      + '.di-alt-disc,.di-alt-elems,.di-fup-targets{font-size:0.85em;color:#475569;margin-top:4px}'
-      + '.di-lbl{color:#64748b;font-weight:600}'
-      + '.di-mech-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}'
-      + '.di-mech-target{background:#f1f5f9;padding:1px 6px;border-radius:3px}'
-      + '.di-mech-rationale{color:#475569;line-height:1.45}'
-      + '.di-update-chip{font-size:0.7em;text-transform:uppercase;letter-spacing:0.05em;padding:1px 8px;border-radius:9999px;background:#e2e8f0;color:#475569}'
-      + '.di-update-strengthen{background:#dcfce7;color:#166534}'
-      + '.di-update-weaken{background:#fef3c7;color:#92400e}'
-      + '.di-update-reject{background:#fee2e2;color:#991b1b}'
-      + '.di-update-revise,.di-update-split,.di-update-merge{background:#e0e7ff;color:#3730a3}'
-      + '.di-conf-change{font-size:0.72em;padding:1px 8px;border-radius:9999px;background:#eef2ff;color:#4338ca;font-family:ui-monospace,monospace}'
-      + '.di-approval-badge{font-size:0.7em;padding:1px 8px;border-radius:9999px;background:#fef3c7;color:#92400e}'
-      + '.di-fup-card{border-left-color:#10b981}'
-      + '.di-fup-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}'
-      + '.di-fup-title{flex:1;min-width:160px}'
-      + '.di-fup-exp{color:#475569;margin:4px 0;line-height:1.45}'
-      + '.di-type-chip,.di-trigger-chip,.di-prio-chip{font-size:0.7em;padding:1px 8px;border-radius:9999px;background:#e2e8f0;color:#475569}'
-      + '.di-trigger-chip{background:#f3e8ff;color:#6b21a8}'
-      + '.di-gain-chip{font-size:0.7em;padding:1px 8px;border-radius:9999px;background:#e2e8f0;color:#475569}'
-      + '.di-gain-high{background:#dcfce7;color:#166534}'
-      + '.di-gain-medium{background:#fef9c3;color:#854d0e}'
-      + '.di-gain-low{background:#f1f5f9;color:#64748b}'
-      + '.di-add-btn{margin-top:8px;font-size:0.82em;padding:4px 12px;border:1px solid #10b981;background:#f0fdf4;color:#065f46;border-radius:4px;cursor:pointer}'
-      + '.di-add-btn:hover{background:#dcfce7}'
-      + '.di-add-btn:disabled{opacity:0.6;cursor:default}'
-      + '.di-addressed{margin-top:12px}'
       // charts — SVGs scale to fit their card container; preserves aspect
       // ratio so a 1400×484 chart shrinks to (e.g.) 800×276 instead of
       // overflowing horizontally + clipping content.
       + '.chart-card{background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px 12px 12px;margin:10px 0}'
-      + '.chart-card svg,.chart-card img.chart-img{display:block;width:100%;max-width:100%;height:auto}'
+      + '.chart-card svg{display:block;width:100%;max-width:100%;height:auto}'
       + '.chart-caption{font-size:0.83em;color:#475569;margin-top:4px;line-height:1.4}'
       + '.chart-simulations{font-size:0.9em;color:#1e3a8a;background:#dbeafe;border-left:3px solid #2563eb;padding:6px 10px;margin-top:8px;border-radius:0 3px 3px 0;line-height:1.5}'
       + '.chart-simulations strong{color:#1e40af}'
@@ -8558,14 +6894,6 @@
       //    HTML renders with no external assets) ─────────────────────────
       + '.investigation-biology-story{padding:16px 20px;background:#f0f9ff;border:1px solid #bae6fd;border-left:5px solid #0284c7;border-radius:8px;margin:14px 0 18px 0;max-width:none}'
       + '.investigation-biology-story p.biology-prose{margin:0;font-size:1em;line-height:1.6;color:#0c4a6e;white-space:pre-line;max-width:none}'
-      + 'details.report-fold{margin:10px 0;border-left:3px solid #cbd5e1;padding-left:10px}'
-      + 'details.report-fold>summary{cursor:pointer;font-weight:600;color:#1e3a8a;margin-bottom:6px}'
-      + '.rf-prev{color:#64748b;font-weight:400;font-size:0.9em}'
-      + '.rf-chip{display:inline-block;background:#eef2ff;color:#3730a3;border-radius:10px;padding:1px 8px;font-size:0.72em;font-weight:600;margin:0 3px;vertical-align:middle}'
-      + '.rf-pill{display:inline-block;border-radius:10px;padding:1px 8px;font-size:0.72em;font-weight:700;margin:0 3px;vertical-align:middle;background:#e2e8f0;color:#334155;text-transform:uppercase;letter-spacing:0.03em}'
-      + '.rf-pill-pass,.rf-pill-passed,.rf-pill-complete{background:#dcfce7;color:#166534}'
-      + '.rf-pill-in-progress,.rf-pill-active,.rf-pill-running{background:#fef9c3;color:#854d0e}'
-      + '.rf-pill-fail,.rf-pill-failed,.rf-pill-invalid{background:#fee2e2;color:#991b1b}'
       + '.biology-glance{margin:0 0 18px 0;padding:14px 18px;background:#f0fdf4;border:1px solid #bbf7d0;border-left:5px solid #16a34a;border-radius:8px}'
       + '.biology-glance .biology-glance-label{font-size:0.85em;text-transform:uppercase;letter-spacing:0.05em;color:#166534;margin:0 0 8px 0;font-weight:600;border:none;padding:0}'
       + '.biology-summary-callout{margin-bottom:14px}'
@@ -8745,124 +7073,44 @@
       + '.sim-status-gated,.sim-status-pill.sim-status-gated{background:#fef9c3;color:#854d0e}'
       + '</style></head><body>'
 
-      // ── Embed autosize (self-reporting child pattern) ──────────────
-      //
-      // Each embed-frame iframe runs its own ResizeObserver +
-      // MutationObserver inside its document and posts the measured
-      // height to this parent via postMessage. The parent maps
-      // event.source → iframe element and sets iframe.style.height.
-      //
-      // Why self-reporting instead of parent-side measurement: prior
-      // _fitEmbed used a selector walk
-      // (.plotly-graph-div / [data-plotly] / div[id] / svg / img / canvas)
-      // to find tall children and sum their bounding rects. Every new
-      // content type the walk didn't recognize (`<table>` from fetch,
-      // `<video>`, etc.) under-measured → iframe clipped. The
-      // MutationObserver here catches DOM changes that don't immediately
-      // trigger a size change on body (e.g. table populated from a
-      // fetch); the ResizeObserver catches everything else. body
-      // .scrollHeight is ground truth in the iframe's own document, no
-      // selector needed.
-      //
-      // The child function is defined here in the parent context only so
-      // its source can be extracted via .toString() and injected into
-      // each iframe's <head>. It does NOT execute in the parent.
+      // Auto-size embedded visualization iframes to their full content so they
+      // render inline with no inner scrollbar. srcdoc iframes are same-origin,
+      // so we can read scrollHeight. Plotly draws async, so re-measure on a
+      // ResizeObserver of the inner doc plus a few timed fallbacks.
       + '<script>'
-      + 'window.__embedReg=window.__embedReg||new Map();'
-      // Parent receiver — install once.
-      + 'if(!window.__embedRecv){window.__embedRecv=true;'
-      +   'window.addEventListener("message",function(ev){'
-      +     'if(!ev.data||ev.data.type!=="embed-autosize:height")return;'
-      +     'var f=window.__embedReg.get(ev.source);if(!f)return;'
-      +     'var h=Math.max(0,+ev.data.height||0);'
-      +     'if(h>0)f.style.height=(h+24)+"px";'
-      +   '});'
-      + '}'
-      // Child function — its .toString() is what runs inside each iframe.
-      //
-      // Height measurement uses a SENTINEL: an invisible 0×0 div appended
-      // as the last child of body. Its top position (relative to body's
-      // top) IS the content height — independent of body's laid-out
-      // height, html element height, or `height: 100%` style inheritance.
-      // Avoids the feedback loop where html.scrollHeight grows with the
-      // iframe's own viewport size, which then makes us report a larger
-      // height, which grows the iframe again, ad infinitum.
-      + 'window.__embedChildFn=function(){'
-      +   'if(window.__ec)return;window.__ec=1;'
-      +   'var sentinel=null;'
-      +   'function ensureSentinel(){'
-      +     'if(sentinel&&sentinel.parentNode===document.body)return;'
-      +     'sentinel=document.createElement("div");'
-      +     'sentinel.setAttribute("data-ec-sentinel","1");'
-      +     'sentinel.style.cssText="height:0;width:0;visibility:hidden;clear:both;margin:0;padding:0";'
-      +     'document.body.appendChild(sentinel);'
+      + 'window._fitEmbed=function(f){try{var d=f.contentDocument||(f.contentWindow&&f.contentWindow.document);if(!d)return;'
+      +   'var b=d.body,e=d.documentElement;'
+      +   // If the inner body declares a fixed CSS height + overflow:hidden,
+      +   // read the DECLARED height directly (b.clientHeight is the laid-out
+      +   // height which is clipped by the iframe viewport, so it shrinks
+      +   // instead of pinning at the CSS value). getComputedStyle.height is
+      +   // a string like "540px" — parse it. Falls back to scrollHeight
+      +   // for unclamped embeds (e.g. tall chromosome figures).
+      +   'var bStyle=b&&d.defaultView&&d.defaultView.getComputedStyle?d.defaultView.getComputedStyle(b):null;'
+      +   'var pinnedH=0;'
+      +   'if(bStyle&&(bStyle.overflow||"").indexOf("hidden")>=0){'
+      +     'var hm=(bStyle.height||"").match(/^(\\d+(?:\\.\\d+)?)px$/);'
+      +     'if(hm)pinnedH=Math.round(parseFloat(hm[1]));'
       +   '}'
-      +   'function m(){var d=document,b=d.body;if(!b)return;'
-      // Honor explicit pinned height (height + overflow:hidden in inner CSS).
-      +     'var p=0;if(window.getComputedStyle){var bs=getComputedStyle(b);'
-      +       'if(bs&&(bs.overflow||"").indexOf("hidden")>=0){'
-      +         'var hm=(bs.height||"").match(/^(\\d+(?:\\.\\d+)?)px$/);'
-      +         'if(hm)p=Math.round(parseFloat(hm[1]));}}'
-      +     'var h;'
-      +     'if(p>0){h=p;}else{'
-      +       'ensureSentinel();'
-      +       'var bRect=b.getBoundingClientRect();'
-      +       'var sRect=sentinel.getBoundingClientRect();'
-      +       'h=Math.max(0,Math.ceil(sRect.top-bRect.top));'
-      // Fallback if sentinel reads 0 (e.g. body itself has display:none).
-      +       'if(h===0)h=b.scrollHeight||0;'
-      +     '}'
-      +     'try{window.parent.postMessage({type:"embed-autosize:height",height:h},"*");}catch(_){}'
-      +   '}'
-      +   'function init(){ensureSentinel();m();'
-      // Only observe body. Observing documentElement caused the runaway
-      // feedback loop (html scrollHeight grows with iframe viewport).
-      +     'if(window.ResizeObserver&&document.body){'
-      +       'var ro=new ResizeObserver(m);ro.observe(document.body);}'
-      +     'if(window.MutationObserver&&document.body){var mo=new MutationObserver(function(muts){'
-      // Skip mutations triggered by our own sentinel insertion to avoid
-      // a measurement immediately re-firing measurement.
-      +       'for(var i=0;i<muts.length;i++){'
-      +         'var t=muts[i].target;'
-      +         'if(t&&t.getAttribute&&t.getAttribute("data-ec-sentinel"))return;}'
-      +       'm();'
-      +     '});'
-      +       'mo.observe(document.body,{childList:1,subtree:1,attributes:1,'
-      +         'attributeFilter:["style","class","src","open","hidden"]});}'
-      // Per-image load handlers catch late-decoded images that don't
-      // trigger body resize until they finish decoding.
-      +     'if(document.body){var ii=document.body.querySelectorAll("img");'
-      +       'for(var i=0;i<ii.length;i++){'
-      +         'if(!ii[i].complete)ii[i].addEventListener("load",m);}}'
-      +     'window.addEventListener("load",m);'
-      // Belt-and-suspenders timed safety net for content loaded by
-      // async scripts that don't mutate body's observable surface.
-      +     '[100,500,2000].forEach(function(t){setTimeout(m,t);});'
-      +   '}'
-      +   'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);'
-      +   'else init();'
-      + '};'
-      // Stash the child source for injection.
-      + 'window.__embedChildJs="("+window.__embedChildFn.toString()+")();";'
-      // _wireEmbed: register the iframe in the parent map, inject the
-      // child autosize script into its head. Idempotent — re-wiring
-      // an already-wired iframe is a no-op.
-      + 'window._wireEmbed=function(f){try{'
-      +   'var cw=f.contentWindow;if(cw)window.__embedReg.set(cw,f);'
-      +   'var inj=function(){try{var d=f.contentDocument;if(!d||!d.head)return;'
-      +     'if(d.head.querySelector("script[data-ec]"))return;'
-      +     'var s=d.createElement("script");s.setAttribute("data-ec","1");'
-      +     's.textContent=window.__embedChildJs;'
-      +     'd.head.appendChild(s);}catch(_e){}};'
-      +   'if(f.contentDocument&&f.contentDocument.readyState!=="loading")inj();'
-      +   'else f.addEventListener("load",inj,{once:true});'
-      + '}catch(e){}};'
-      // _fitEmbed: back-compat shim. A few call sites elsewhere still
-      // invoke _fitEmbed directly; forward to _wireEmbed so they pick
-      // up the new child-injection path without code changes.
-      + 'window._fitEmbed=function(f){if(window._wireEmbed)window._wireEmbed(f);};'
-      // Collapsed-embed toggle: when a <details> opens an embed, kick
-      // the iframe to re-measure (in case it was paused while hidden).
+      +   // Plotly charts that overflow their fixed-height div report the
+      +   // chart-div height in scrollHeight, not the legend overflow. Walk
+      +   // any .plotly-graph-div / [id^="dnaa-"] / [id="chart"] children
+      +   // and add their full computed scrollHeight to the measurement so
+      +   // the iframe grows to fit the chart + ITS internal legend.
+      +   'var plotlyMax=0;try{var charts=d.querySelectorAll(\'.plotly-graph-div, [data-plotly], div[id]\');'
+      +     'for(var ci=0;ci<charts.length;ci++){var c=charts[ci];'
+      +       'var rect=c.getBoundingClientRect&&c.getBoundingClientRect();var top=rect?rect.top:0;'
+      +       'var ch=Math.max(c.scrollHeight||0,c.offsetHeight||0,c.clientHeight||0);'
+      +       'var totalTo=top+ch;if(totalTo>plotlyMax)plotlyMax=totalTo;}}catch(_e){}'
+      +   'var docH=Math.max(e?e.scrollHeight:0,b?b.scrollHeight:0,plotlyMax);'
+      +   'var h=pinnedH>0?pinnedH:docH;'
+      +   'if(h>0)f.style.height=(h+24)+"px";}catch(e){}};'
+      + 'window._wireEmbed=function(f){window._fitEmbed(f);'
+      +   'try{var d=f.contentDocument;if(window.ResizeObserver&&d){var ro=new ResizeObserver(function(){window._fitEmbed(f);});'
+      +     'if(d.documentElement)ro.observe(d.documentElement);if(d.body)ro.observe(d.body);}}catch(e){}'
+      +   '[150,500,1200,2500,4000].forEach(function(t){setTimeout(function(){window._fitEmbed(f);},t);});};'
+      // A collapsed (prior/superseded) embed: when expanded, nudge Plotly to
+      // recompute width and re-fit the iframe.
       + 'window._onEmbedToggle=function(d){if(!d.open)return;var f=d.querySelector(".embed-frame");if(!f)return;'
       +   'try{f.contentWindow&&f.contentWindow.dispatchEvent(new Event("resize"));}catch(e){}'
       +   'if(window._wireEmbed)window._wireEmbed(f);};'
@@ -8870,16 +7118,15 @@
 
       // ── Sticky top nav — section-level tags only (per-study nav now lives
       //    in the collapsed control panels). Conditional tags render only when
-      //    the section exists, keeping the bar uncluttered. Trailing switcher
-      //    dropdown lists peer investigations from /api/investigation-registry
-      //    so the user can jump between live dashboards without leaving the
-      //    page — see _wireIsetSwitcher below for the click + render logic.
+      //    the section exists, keeping the bar uncluttered.
       + '<nav class="topbar">'
       +   '<span class="tb-title">' + _h(iset.title || iset.name) + '</span>'
-      +   '<a href="#" onclick="window.scrollTo({top:0,behavior:\'smooth\'});return false;">Top</a>'
+      +   '<a href="#top">Top</a>'
+      +   ((iset.executive && (iset.executive.what_is_this || iset.executive.verdict)) ? '<a href="#executive">Summary</a>' : '')
+      +   ((iset.scientific_argument && iset.scientific_argument.main_claim) ? '<a href="#scientific-argument">Argument</a>' : '')
+      +   '<a href="#overview">Overview</a>'
       /* "Acceptance" nav link removed alongside the section it pointed to */
-      /* "Suggested additions" nav link removed per request; the section itself
-         (id="proposed-inputs") stays in the body. */
+      +   '<a href="#how-to-read">How to read</a>'
       +   '<a href="#studies-heading">Studies</a>'
       +   '<a href="#references">References</a>'
       + '</nav>'
@@ -8896,48 +7143,6 @@
       // Coordinated-generation provenance banner (expert-feedback A.3).
       +   generationBannerHtml
 
-      // Spine C2: the investigation's verdict DAG + acceptance roll-up narrative
-      // — the dependency structure + where it passes/blocks, at a glance, before
-      // the per-study folds.
-      +   acceptanceNarrativeHtml
-      +   acGatingMatrixHtml
-      +   verdictDagHtml
-
-      // ── Execution-status banner (LEADS the report, before the folds) ────
-      // Accurate to the actual run state: a pre-execution review notice when
-      // nothing has run yet, otherwise a concise post-execution lead that names
-      // the still-planned studies. Placed at the very top so it never wedges
-      // between the collapsible sections.
-      +   (function() {
-            var alls = specs || [];
-            var planning = alls.filter(function(s) { return !(s.runs || []).length && !(s.findings || []).length; });
-            var total = alls.length, n = planning.length;
-            if (!n) return '';
-            var names = planning.map(function(s) { return s.name || s.slug || ''; }).filter(Boolean).join(', ');
-            var pre = (n === total);   // genuinely pre-execution — nothing has run
-            var body = pre
-              ? '<strong>Planning phase — pre-execution review.</strong> None of the ' + total
-                + ' studies have run yet; the charts are the <strong>workspace pre-execution baseline</strong>.'
-                + ' For each study the key review surfaces are:'
-              : '<strong>' + (total - n) + ' of ' + total + ' studies have completed runs</strong> — their'
-                + ' verdicts + evaluator-computed test outcomes are below. ' + n + ' still in planning'
-                + (names ? ' (<code>' + _h(names) + '</code>)' : '')
-                + ': their charts are pre-execution baselines and their tests are pending those runs.'
-                + ' For the planned studies the key review surfaces are:';
-            return '<div class="planning-phase-banner" id="planning-phase-banner">'
-              + '<div class="planning-phase-banner-icon">📝</div>'
-              + '<div class="planning-phase-banner-content">'
-              +   '<div class="planning-phase-banner-body">' + body + '</div>'
-              +   '<ul class="planning-phase-banner-list">'
-              +     '<li><strong>Conditions</strong> — variants and their parameter overrides, plus the model settings awaiting your call.</li>'
-              +     '<li><strong>Expected behavior</strong> — what each test claims will pass / fail and the criterion it uses (flag any under- or over-specified).</li>'
-              +     '<li><strong>Baseline visualizations</strong> — what the system looks like before the study\'s mechanism lands.</li>'
-              +   '</ul>'
-              +   '<div class="planning-phase-banner-foot">Click the <strong>💬</strong> icon next to any section to leave inline feedback. "Generate feedback report" (bottom-right) packages everything into a single yaml file.</div>'
-              + '</div>'
-              + '</div>';
-          })()
-
       // ── LAYER 1: EXECUTIVE ─────────────────────────────────────────────
       // Authored narrative + conclusions for a human reviewer, at the very
       // top. Reads iset.executive; renders nothing if the field is absent
@@ -8945,153 +7150,24 @@
       +   (function() {
             var ex = iset.executive || {};
             var dn = ex.decisions_needed || [];
-            if (!ex.what_is_this && !ex.verdict && !iset.question && !iset.hypothesis) return '';
+            if (!ex.what_is_this && !ex.verdict && !dn.length) return '';
             var vs = ex.verdict_status || 'in-progress';
-            var h = '<details id="executive" class="report-fold" style="margin-top:12px"><summary>📋 Executive summary' + ' <span class="rf-pill rf-pill-' + _h(String(vs).toLowerCase().replace(/[^a-z0-9]+/g,'-')) + '">' + _h(vs) + '</span>' + ((ex.verdict || ex.what_is_this) ? ' <span class="rf-prev">' + _h(_previewText(ex.verdict || ex.what_is_this, 150)) + '</span>' : '') + '</summary>';
+            var h = '<section id="executive"><h2 style="margin-top:12px">Executive summary</h2>';
             if (ex.what_is_this)
               h += '<p>' + _multiline(ex.what_is_this) + '</p>';
             if (ex.verdict)
               h += '<div class="callout" style="background:#f8fafc;border-left:5px solid #64748b;border-radius:8px;padding:12px 16px;margin:10px 0">'
                  + '<span class="badge badge-' + _h(vs) + '">' + _h(vs) + '</span> '
                  + '<strong>Current verdict.</strong> ' + _multiline(ex.verdict) + '</div>';
-            if (iset.question)
-              h += '<p><strong>Question.</strong> ' + _multiline(iset.question) + '</p>';
-            if (iset.hypothesis)
-              h += '<p><strong>Hypothesis.</strong> ' + _multiline(iset.hypothesis) + '</p>';
-            // ── Spine A1: computed acceptance roll-up ──────────────────────
-            // Restores the acceptance visibility removed earlier, now COMPUTED
-            // by the spine (investigation_status.roll_up_acceptance) and
-            // connected to the member studies' verdicts. Mirrors the
-            // param-enforcement banner: surfaced, connected (each criterion
-            // links to its study section), and labeled code-computed vs
-            // authored, with a divergence badge when the two disagree.
-            var ca = iset.computed_acceptance;
-            if (ca && ca.criteria && ca.criteria.length) {
-              var authoredVs = (ex.verdict_status || '').toString().toLowerCase().trim();
-              var computedVs = (ca.verdict_status || '').toString().toLowerCase().trim();
-              // NOTE: the per-criterion `result`s below are LIVE-ROLLED at render
-              // time (from each member study's current verdict), whereas
-              // `ca.diverges_from_authored` is the spine-PERSISTED divergence flag
-              // — the two can momentarily differ; this is acceptable per the plan.
-              // Prefer the spine-persisted divergence flag; fall back to the
-              // computed-vs-authored verdict_status comparison the plan allows.
-              var caDiverges = (ca.diverges_from_authored === true)
-                || (!!authoredVs && !!computedVs && authoredVs !== computedVs);
-              var critRows = ca.criteria.map(function(c) {
-                var r = (c.result || '').toString().toLowerCase();
-                var rcls = (r === 'passing' || r === 'pass') ? '#16a34a'
-                         : (r === 'failing' || r === 'fail') ? '#dc2626'
-                         : '#92400e';
-                return '<tr>'
-                  + '<td style="padding:3px 8px"><a href="#study-' + _h(c.study) + '">' + _h(c.study) + '</a></td>'
-                  + '<td style="padding:3px 8px">' + _h(c.behavior || '') + '</td>'
-                  + '<td style="padding:3px 8px;font-weight:600;color:' + rcls + '">' + _h(c.result || '—') + '</td>'
-                  + '</tr>';
-              }).join('');
-              var caBadge = caDiverges
-                ? '<span class="acceptance-divergence" title="The code-computed acceptance disagrees with the authored verdict_status — computed by the spine (investigation_status), not human-authored." style="display:inline-block;margin-left:8px;padding:2px 9px;border-radius:9999px;font-size:0.8em;font-weight:600;background:#fffbeb;border:1px solid #f59e0b;color:#92400e">⚠ code: ' + _h(ca.verdict_status || computedVs || '?') + ' · authored: ' + _h(ex.verdict_status || '—') + '</span>'
-                : '';
-              h += '<div class="acceptance-rollup" id="' + _h(iset.name || 'inv') + '-acceptance-rollup" '
-                + 'style="margin:12px 0;padding:12px 16px;background:#f8fafc;border:1px solid #cbd5e1;border-left-width:5px;border-radius:6px">'
-                + '<strong>Acceptance roll-up</strong> '
-                + '<span class="muted small" style="color:#64748b">code-computed from member-study verdicts</span>'
-                + caBadge
-                + '<table class="small" style="margin-top:8px;border-collapse:collapse">'
-                + '<thead><tr>'
-                + '<th style="padding:3px 8px;text-align:left">Study</th>'
-                + '<th style="padding:3px 8px;text-align:left">Behavior</th>'
-                + '<th style="padding:3px 8px;text-align:left">Result</th>'
-                + '</tr></thead><tbody>' + critRows + '</tbody></table></div>';
+            if (dn.length) {
+              h += '<h3>Decisions needed from reviewers</h3><ol>'
+                 + dn.map(function(d) {
+                     return '<li><strong>' + _h(d.question || '') + '</strong>'
+                       + (d.context ? '<div class="muted small">' + _multiline(d.context) + '</div>' : '')
+                       + '</li>';
+                   }).join('') + '</ol>';
             }
-            return h + '</details>';
-          })()
-
-      // ── Decisions needed (top-level fold, pulled out of Executive) ──
-      +   (function() {
-            var dn = (iset.executive || {}).decisions_needed || [];
-            if (!dn.length) return '';
-            return '<details id="decisions-needed" class="report-fold"><summary>✋ Decisions needed from reviewers' + ' <span class="rf-chip">' + dn.length + ' item' + (dn.length===1?'':'s') + '</span>' + (dn[0] && dn[0].question ? ' <span class="rf-prev">next: ' + _h(_previewText(dn[0].question, 130)) + '</span>' : '') + '</summary><ol>'
-              + dn.map(function(d) {
-                  return '<li><strong>' + _h(d.question || '') + '</strong>'
-                    + (d.context ? '<div class="muted small">' + _multiline(d.context) + '</div>' : '')
-                    + '</li>';
-                }).join('') + '</ol></details>';
-          })()
-
-      // ── PROPOSED INPUTS (pending expert approval) ──────────────────────
-      // Agent-suggested references / mechanisms the expert did NOT provide.
-      // They are NOT silently integrated: each is surfaced here for the
-      // expert to Accept (→ promoted to a real provided input) or Decline.
-      // Reads iset.proposed_inputs.items; renders nothing if absent/empty.
-      // Mirrors the follow-up-proposal Accept/Decline button pattern via
-      // _decideProposedInput → POST /api/proposed-input-decision.
-      +   (function() {
-            var pi = iset.proposed_inputs || {};
-            var items = pi.items || [];
-            if (!items.length) return '';
-            var pending = items.filter(function(it){ return (it.status||'pending')==='pending'; }).length;
-            function _kindBadge(kind) {
-              var k = (kind||'reference');
-              var bg = k === 'mechanism' ? '#faf5ff' : '#eff6ff';
-              var fg = k === 'mechanism' ? '#6b21a8' : '#1e40af';
-              return '<span style="font-size:0.7em;text-transform:uppercase;letter-spacing:0.05em;'
-                + 'padding:1px 8px;border-radius:9999px;background:' + bg + ';color:' + fg + '">' + _h(k) + '</span>';
-            }
-            function _statusPill(status) {
-              var s = (status||'pending');
-              var c = s === 'accepted' ? {bg:'#dcfce7',fg:'#166534'}
-                    : s === 'declined' ? {bg:'#fee2e2',fg:'#991b1b'}
-                    : {bg:'#fef3c7',fg:'#92400e'};
-              return '<span style="font-size:0.7em;padding:1px 8px;border-radius:9999px;background:'
-                + c.bg + ';color:' + c.fg + ';margin-left:6px">' + _h(s) + '</span>';
-            }
-            var cards = items.map(function(it) {
-              var status = it.status || 'pending';
-              var headline = (it.kind === 'mechanism') ? (it.summary || '(mechanism)') : (it.citation || '(reference)');
-              var rows = [];
-              if (it.related_study) rows.push('<div class="muted small"><strong>Related study:</strong> <code>' + _h(it.related_study) + '</code></div>');
-              if (it.rationale) rows.push('<div class="small" style="margin-top:4px"><strong>Rationale.</strong> ' + _multiline(it.rationale) + '</div>');
-              if (it.provenance) rows.push('<div class="muted small" style="margin-top:4px"><strong>Provenance.</strong> ' + _multiline(it.provenance) + '</div>');
-              if (it.proposed_by || it.proposed_at) {
-                rows.push('<div class="muted small" style="margin-top:4px">proposed by ' + _h(it.proposed_by || 'agent')
-                  + (it.proposed_at ? ' · ' + _h(String(it.proposed_at)) : '') + '</div>');
-              }
-              var actions;
-              if (status === 'pending') {
-                // No custom Accept/Decline buttons: reviewers annotate this
-                // section with the standard inline-feedback 💬 affordance
-                // (the section id="proposed-inputs" is an annotatable host),
-                // which round-trips reliably in the downloaded file:// report.
-                actions = '';
-              } else {
-                actions = '<div class="proposed-input-resolved muted small" style="margin-top:10px;font-style:italic">'
-                  + (status === 'accepted'
-                      ? '✓ Accepted by the expert' + (it.kind === 'reference' ? ' — added to the investigation\'s provided references.' : ' — a human integrates the mechanism.')
-                      : '✗ Declined by the expert — not integrated.')
-                  + '</div>';
-              }
-              var borderColor = status === 'accepted' ? '#16a34a' : status === 'declined' ? '#dc2626' : '#f59e0b';
-              return '<div class="proposed-input-card" data-item-id="' + _h(String(it.id||'')) + '" '
-                + 'style="padding:12px 14px;border:1px solid #e2e8f0;border-left:4px solid ' + borderColor
-                + ';border-radius:6px;background:#fff;margin-bottom:10px">'
-                + '<div style="display:flex;align-items:flex-start;gap:8px">'
-                +   '<div style="flex:1;min-width:0">'
-                +     _kindBadge(it.kind) + _statusPill(status)
-                +     '<div style="font-weight:600;margin-top:6px">' + _h(headline) + '</div>'
-                +     rows.join('')
-                +   '</div>'
-                + '</div>'
-                + actions
-                + '</div>';
-            }).join('');
-            var note = pi._note
-              ? '<p class="muted small" style="margin:0 0 10px 0">' + _multiline(pi._note) + '</p>'
-              : '<p class="muted small" style="margin:0 0 10px 0">These references / mechanisms were proposed by the agent and were '
-                + '<strong>not</strong> provided by the expert. Nothing here is integrated until you <strong>Accept</strong> it.</p>';
-            return '<details id="proposed-inputs" class="report-fold"><summary>🧩 Suggested additions — pending your approval'
-              + ' <span class="rf-chip">' + items.length + ' item' + (items.length===1?'':'s')
-              + (pending ? ' · ' + pending + ' pending' : '') + '</span></summary>'
-              + note + cards + '</details>';
+            return h + '</section>';
           })()
 
       // ── LAYER 2: SCIENTIFIC ARGUMENT ───────────────────────────────────
@@ -9103,7 +7179,7 @@
                 kf = sa.key_figures || [], cav = sa.caveats || [];
             if (!sa.main_claim && !ef.length && !ea.length) return '';
             function _li(x) { return '<li>' + _multiline(typeof x === 'string' ? x : (x.text || JSON.stringify(x))) + '</li>'; }
-            var h = '<details id="scientific-argument" class="report-fold"><summary>🔬 Scientific argument' + ((ef.length || ea.length) ? ' <span class="rf-chip">' + ef.length + ' for \u00b7 ' + ea.length + ' against</span>' : '') + (sa.main_claim ? ' <span class="rf-prev">' + _h(_previewText(sa.main_claim, 150)) + '</span>' : '') + '</summary>';
+            var h = '<section id="scientific-argument"><h2>Scientific argument</h2>';
             if (sa.main_claim)
               h += '<p><strong>Main claim.</strong> ' + _multiline(sa.main_claim) + '</p>';
             if (ef.length || ea.length) {
@@ -9118,18 +7194,47 @@
               }).join('') + '</ul>';
             if (cav.length)
               h += '<h3>Caveats</h3><ul>' + cav.map(_li).join('') + '</ul>';
-            return h + '</details>';
+            return h + '</section>';
           })()
 
+      // Planning-phase banner: any study that has not yet produced runs
+      // is treated as planning, and the whole report leads with a notice
+      // that the doc is a pre-execution spec for expert review.
+      +   (function() {
+            var planningCount = (specs || []).filter(function(s) {
+              return !(s.runs || []).length && !(s.findings || []).length;
+            }).length;
+            if (!planningCount) return '';
+            return '<div class="planning-phase-banner" id="planning-phase-banner">'
+              + '<div class="planning-phase-banner-icon">📝</div>'
+              + '<div class="planning-phase-banner-content">'
+              +   '<div class="planning-phase-banner-body">'
+              +     '<strong>Planning phase — pre-execution review.</strong> '
+              +     planningCount + ' of ' + (specs || []).length + ' studies have not yet run. '
+              +     'The charts below come from the <strong>workspace pre-execution baseline</strong>. '
+              +     'For each study, the most important sections for expert review are:'
+              +   '</div>'
+              +   '<ul class="planning-phase-banner-list">'
+              +     '<li><strong>Conditions</strong> — variants and their parameter overrides, plus the model settings awaiting your call. Edit values in the live dashboard\'s Build tab, or comment here.</li>'
+              +     '<li><strong>Expected behavior</strong> — what each test claims will pass / fail and the criterion it uses. Flag any test that\'s under- or over-specified.</li>'
+              +     '<li><strong>Baseline visualizations</strong> — what the system looks like before the study\'s mechanism lands. Comment on whether the trace matches your intuition.</li>'
+              +   '</ul>'
+              +   '<div class="planning-phase-banner-foot">Click the <strong>💬</strong> icon next to any section to leave inline feedback. "Generate feedback report" (bottom-right) packages everything into a single yaml file to send back.</div>'
+              + '</div>'
+              + '</div>';
+          })()
 
       +   ((iset.biological_story || '').trim()
-          ? '<details id="biology" class="report-fold">'
-            + '<summary>🧬 Biology — the mechanism this investigation models' + ' <span class="rf-prev">' + _h(_previewText(iset.biological_story || '', 175)) + '</span>' + '</summary>'
-            + '<p style="margin:0">' + _multiline(iset.biological_story) + '</p>'
-            + '</details>'
+          ? '<div class="investigation-biology-story">'
+            + '<h2 style="margin:0 0 8px 0;font-size:0.85em;text-transform:uppercase;letter-spacing:0.05em;color:#075985;font-weight:600;border:none;padding:0">Biology — the mechanism this investigation models</h2>'
+            + '<p class="biology-prose">' + _multiline(iset.biological_story) + '</p>'
+            + '</div>'
           : '')
 
-      +   ''
+      +   '<h2 id="overview">Overview</h2>'
+      +   (iset.question   ? '<p><strong>Question.</strong> '   + _multiline(iset.question)   + '</p>' : '')
+      +   (iset.hypothesis ? '<p><strong>Hypothesis.</strong> ' + _multiline(iset.hypothesis) + '</p>' : '')
+      +   (iset.description ? '<div class="description"><p>' + _multiline(iset.description) + '</p></div>' : '')
 
       /* Removed: top-of-report "Acceptance criteria" section.
          Per-study behavior_tests + conclusion_verdicts (the v4 way
@@ -9137,6 +7242,25 @@
          this investigation to be considered complete." The top-of-
          report ordered list of acceptance criteria duplicated that
          signal in a less-actionable form. */
+
+      +   '<h2 id="how-to-read">How to read this report</h2>'
+      +   '<p>Each section below is one study, '
+      +     (hasDag
+        ? 'ordered by dependency (roots first): a downstream study assumes the studies it depends on have passed, so reading top-down keeps the context intact.'
+        : 'listed in the order declared in the investigation.')
+      +   ' Each study presents these parts (sections with no content are omitted):</p>'
+      +   '<ul>'
+      +     '<li><strong>Question</strong> — what this study is asking, and why.</li>'
+      +     (hasAssumptions
+        ? '<li><strong>Assumptions</strong> — what the study takes as given, cited to the literature where applicable.</li>'
+        : '')
+      +     '<li><strong>Conditions</strong> — the experimental setup: <em>baseline</em> (the reference composite), <em>variants</em> (parameter perturbations), and <em>model settings</em> (any parameters gated on human input before a run).</li>'
+      +     '<li><strong>Tests</strong> — pass/fail criteria, each with a measure path and a comparison op. Charts inline below show the observable over the run; once tests are evaluated, each maps to a row in the gate decision.</li>'
+      +     '<li><strong>Status</strong> — shown as a phase badge plus per-axis status (design, implementation, simulation, evaluation, gate, expert review). The headline pill is the gate status when set; legacy single-keyword status is shown as a fallback.</li>'
+      +   '</ul>'
+      +   '<p>Supporting detail — <em>Model change</em>, <em>Implementation requirements</em>, <em>Follow-up studies</em>, <em>Limitations</em>, <em>References</em> — appears below each study when present, inside collapsible <em>Technical details</em> blocks. Open them when you need file paths, parameter names, or citations.</p>'
+      +   '<p class="muted small">Chart sourcing: charts are rendered from the study\'s latest <code>runs.db</code>. A study that has not run yet shows the workspace pre-execution baseline as a labelled "before" reference, and an auto-discovered chart that predates the latest run is flagged as possibly stale rather than hidden.</p>'
+      +   '<p class="muted small">Want to leave inline feedback? Click the <strong>💬</strong> icon next to any section. "Generate feedback report" (bottom-right) packages every annotation into a single yaml file that comes back via <code>pbg-feedback-import</code>.</p>'
 
       +   '<h2 id="studies-heading">Studies' + (hasDag ? ' (dependency order)' : '') + '</h2>'
       +   '<p class="muted small">Each study is collapsed to a one-glance control panel — scan top to bottom, then click any panel to expand its full detail.</p>'
@@ -9157,12 +7281,6 @@
       +         'if(ex)ex.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();setAll(true);});'
       +         'if(co)co.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();setAll(false);});'
       +       '}'
-      +       'document.addEventListener("click",function(e){'
-      +         'var t=e.target;var h=t&&t.closest?t.closest(".sn-collapse-hint,.sp-collapse-hint"):null;'
-      +         'if(h){var d=h.closest("details.study-fold");if(d){d.open=false;d.scrollIntoView({behavior:"smooth",block:"start"});}e.preventDefault();e.stopPropagation();return;}'
-      +         'var na=t&&t.closest?t.closest(".study-nav a"):null;'
-      +         'if(na&&na.getAttribute("href")&&na.getAttribute("href").charAt(0)==="#"){var tg=document.getElementById(na.getAttribute("href").slice(1));if(tg){var fd=tg.closest("details.study-fold");if(fd&&!fd.open)fd.open=true;e.preventDefault();setTimeout(function(){tg.scrollIntoView({behavior:"smooth",block:"start"});},0);}}'
-      +       '});'
       +       'if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",wire);}else{wire();}'
       +     '})();</script>'
       +   '</div>'
@@ -9226,78 +7344,6 @@
       + '})();'
       + '</script>'
 
-      // ── Spine A3: readiness-panel populate (report-render completion) ──
-      // The `.study-readiness-panel` placeholders above are emitted per study
-      // but filled by JS. This report is self-contained (no walkthrough.js),
-      // so bake an EXACT copy of _populateReadinessPanels (+ _readinessPanelHtml
-      // + _h) via `.toString()` and invoke it once the study sections have
-      // rendered. Reuses the same deterministic linter fetch — no duplicated
-      // logic, no AI. Idempotent. fetch('/api/report-lint') resolves when the
-      // report is SERVED by the dashboard; offline (file://) it no-ops cleanly.
-      + '<script>'
-      +   '(function(){'
-      +     'var _h=' + _h.toString() + ';'
-      +     'var _readinessPanelHtml=' + _readinessPanelHtml.toString() + ';'
-      +     'var _populateReadinessPanels=' + _populateReadinessPanels.toString() + ';'
-      +     'window._populateReadinessPanels=_populateReadinessPanels;'
-      +     'if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",_populateReadinessPanels);}else{_populateReadinessPanels();}'
-      +   '})();'
-      + '</script>'
-
-      // ── Proposed-input Accept/Decline wiring (in-report) ──────────────
-      // Self-contained handler baked into the downloaded report so the
-      // Accept/Decline buttons work both in the live dashboard report and
-      // when the report is served by the dashboard. POSTs the decision to
-      // /api/proposed-input-decision and, on success, rewrites the card's
-      // status in place (no full reload needed). The investigation name is
-      // baked in so the standalone report knows which investigation to PATCH.
-      + '<script>'
-      + '(function(){'
-      +   'var INV=' + JSON.stringify(iset.name || '') + ';'
-      // Accept / Decline / "+ Add to investigation" all record the reviewer's
-      // decision as a NORMAL ANNOTATION — the same channel the manual 💬
-      // highlight-comments use (window._fbAddAnnotation, defined by the inline-
-      // feedback widget below). No server POST: the agent applies the decision
-      // when it reads the exported feedback YAML, like all other feedback. This
-      // works identically whether the report is served (http/https) or opened
-      // offline (file://).
-      +   'function _annotate(sid,text){'
-      +     'if(window._fbAddAnnotation){window._fbAddAnnotation(sid,text);return true;}'
-      +     'return false;'
-      +   '}'
-      +   'window._decideProposedInput=function(itemId,decision,btn){'
-      +     'if(!itemId){alert("Missing item id");return;}'
-      +     'var card=btn&&btn.closest?btn.closest(".proposed-input-card"):null;'
-      +     'var actions=card?card.querySelector(".proposed-input-actions"):null;'
-      +     'var accepted=decision==="accept";'
-      +     'var titleEl=card?card.querySelector("div[style*=\\"font-weight:600\\"]"):null;'
-      +     'var title=titleEl?titleEl.textContent.trim():"";'
-      +     'var text=(accepted?"Accept":"Decline")+" \\u2014 "+(title||"proposed input")+" [id: "+itemId+"]";'
-      +     'if(!_annotate("proposed-inputs",text)){alert("Could not record the decision (feedback widget unavailable).");return;}'
-      +     'if(actions){actions.querySelectorAll("button").forEach(function(b){b.disabled=true;});}'
-      +     'if(card){card.style.borderLeftColor=accepted?"#16a34a":"#dc2626";}'
-      +     'var resolved=document.createElement("div");'
-      +     'resolved.className="proposed-input-resolved muted small";'
-      +     'resolved.style.cssText="margin-top:10px;font-style:italic";'
-      +     'resolved.textContent=(accepted?"\\u2713":"\\u2717")+" recorded \\u2014 exports with your feedback";'
-      +     'if(actions){actions.replaceWith(resolved);}else if(card){card.appendChild(resolved);}'
-      +   '};'
-      // ── "+ Add to investigation" seed handler (report-scoped) ──────────
-      // Records a "Add study" annotation keyed to the proposed-inputs section.
-      // The SPA defines its own richer _seedFollowupProposal (live graph
-      // refresh); this report-scoped version just annotates so the offline /
-      // served reviewer click is captured in the feedback export.
-      +   'window._seedFollowupProposal=function(parentName,proposalId,proposalIdx,btn){'
-      +     'var card=btn&&btn.closest?btn.closest(".di-fup-card"):null;'
-      +     'var title=card?(function(){var t=card.querySelector(".di-fup-title");return t?t.textContent.trim():"";})():"";'
-      +     'var targets=card?Array.prototype.map.call(card.querySelectorAll(".di-fup-targets code"),function(c){return c.textContent;}):[];'
-      +     'var text="Add study \\u2014 "+(title||"new study")+(targets.length?" (targets: "+targets.join(", ")+")":"")+(parentName?" [parent: "+parentName+"]":"");'
-      +     'if(!_annotate("proposed-inputs",text)){alert("Could not record the request (feedback widget unavailable).");return;}'
-      +     'if(btn){btn.disabled=true;btn.textContent="\\u2713 recorded \\u2014 exports with your feedback";btn.style.borderColor="#16a34a";btn.style.color="#166534";}'
-      +   '};'
-      + '})();'
-      + '</script>'
-
       // ── Inline feedback widget (fully detached: localStorage only) ──
       //
       // Per-report annotation key: each download gets a unique reportId
@@ -9309,8 +7355,7 @@
       + _feedbackWidgetCss()
       + _feedbackWidgetJs(iset.name || 'investigation',
                           'rpt-' + new Date().toISOString()
-                                     .slice(0, 19).replace(/[-:T]/g, ''),
-                          ghRepo)
+                                     .slice(0, 19).replace(/[-:T]/g, ''))
 
       + '</body></html>';
   }
@@ -9340,14 +7385,12 @@
       + '.fb-text{margin-top:2px;white-space:pre-wrap}'
       + '.fb-del{position:absolute;top:4px;right:6px;background:none;border:none;color:#a8a29e;cursor:pointer;font-size:14px;padding:0;line-height:1}'
       + '.fb-del:hover{color:#dc2626}'
-      + '.fb-gh-entry{margin-top:6px;background:#1f883d;color:#fff;border:1px solid #1a7f37;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;line-height:1.2}'
-      + '.fb-gh-entry:hover{background:#1a7f37}'
       + '.fb-bar{position:fixed;bottom:16px;right:16px;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,.15);border-radius:6px;background:#fff}'
       + '.fb-bar-btn{background:#f59e0b;color:#1f2937;border:1px solid #d97706;padding:10px 14px;font-weight:600;border-radius:6px;cursor:pointer;font-size:14px}'
       + '.fb-bar-btn:hover{background:#fde68a}'
       + '.fb-bar-btn[disabled]{opacity:.5;cursor:not-allowed}'
       + '.fb-count{font-weight:400;opacity:.75;margin-left:4px}'
-      + '@media print{.fb-add,.fb-editor,.fb-bar,.fb-gh-entry{display:none}}'
+      + '@media print{.fb-add,.fb-editor,.fb-bar{display:none}}'
       + '</style>';
   }
 
@@ -9366,18 +7409,13 @@
   //      blocks) that clip or hide the editor entirely.
   //   2. A single global editor means clicking a different 💬 swaps the
   //      anchor cleanly instead of opening N stacked editors.
-  function _feedbackWidgetJs(invName, reportId, ghRepo) {
+  function _feedbackWidgetJs(invName, reportId) {
     return '<script>'
       + '(function(){'
       +   'var INV=' + JSON.stringify(invName) + ';'
       +   'var REPORT_ID=' + JSON.stringify(reportId || '') + ';'
-      // Repo (owner/name) resolved server-side at generation time from the
-      // workspace git remote (fallback workspace.yaml dashboard.github_repo).
-      // null when the workspace has no GitHub origin — the widget then
-      // host-detects or prompts once.
-      +   'var GH_REPO=' + JSON.stringify(ghRepo || '') + ';'
       +   'var KEY="v2ecoli_feedback_"+INV+(REPORT_ID?("_"+REPORT_ID):"");'
-      +   'var ID_PATTERNS=[/^study-/,/^finding-/,/^acceptance$/,/^references$/,/^studies-heading$/,/^executive$/,/^decisions-needed$/,/^scientific-argument$/,/^biology$/,/^proposed-inputs$/];'
+      +   'var ID_PATTERNS=[/^study-/,/^finding-/,/^acceptance$/,/^references$/,/^how-to-read$/,/^studies-heading$/];'
       +   'var openEd=null;'
       +   'var memStore={};'
       +   'function safeGet(k){try{var v=(typeof localStorage!=="undefined")?localStorage.getItem(k):null;return (v==null?memStore[k]:v)||"";}catch(e){return memStore[k]||"";}}'
@@ -9407,16 +7445,10 @@
       +              '<button type=\\"button\\" class=\\"fb-del\\" data-i=\\""+i+"\\" title=\\"Delete\\">×</button>'
       +              '<div class=\\"fb-meta\\">"+esc(e.author||"evaluator")+" · "+esc(e.ts)+"</div>'
       +              '<div class=\\"fb-text\\">"+esc(e.text)+"</div>'
-      // Per-annotation one-click GitHub issue (label=feedback, titled+bodied
-      // with this section + this annotation). Hidden when no repo is known.
-      +              '<button type=\\"button\\" class=\\"fb-gh-entry\\" data-i=\\""+i+"\\" title=\\"File this comment as a GitHub issue\\">\\u2197 Open GitHub issue</button>'
       +              '</div>";'
       +     '}).join("");'
       +     'box.querySelectorAll(".fb-del").forEach(function(b){'
       +       'b.addEventListener("click",function(ev){ev.preventDefault();ev.stopPropagation();var i=parseInt(b.dataset.i,10);var d=load();(d[sid]||[]).splice(i,1);if(!(d[sid]||[]).length)delete d[sid];save(d);renderExisting(host,sid);updateBadges();updateBarCount();});'
-      +     '});'
-      +     'box.querySelectorAll(".fb-gh-entry").forEach(function(b){'
-      +       'b.addEventListener("click",function(ev){ev.preventDefault();ev.stopPropagation();var i=parseInt(b.dataset.i,10);var e=(load()[sid]||[])[i];if(e)openGhIssueForSection(sid,e.text,e.author);});'
       +     '});'
       +   '}'
       +   'function closeEditor(){if(openEd){openEd.remove();openEd=null;}}'
@@ -9470,39 +7502,46 @@
       +   'function countAll(){var d=load();var n=0;Object.keys(d).forEach(function(k){n+=(d[k]||[]).length;});return n;}'
       +   'function updateBadges(){var d=load();document.querySelectorAll(".fb-add").forEach(function(b){var sid=b.parentElement&&b.parentElement.id;if(!sid)return;b.classList.toggle("has-fb",((d[sid]||[]).length>0));});}'
       +   'function updateBarCount(){var c=countAll();var nt="("+c+")";document.querySelectorAll(".fb-count").forEach(function(s){if(s.textContent!==nt)s.textContent=nt;});document.querySelectorAll(".fb-bar-btn").forEach(function(btn){btn.disabled=c===0;});}'
+      // B.2: when the report is viewed live (served by the dashboard over
+      // http/https) offer a one-click "Send to dashboard" that POSTs the
+      // annotations straight to /api/feedback-import — no download → email →
+      // CLI. Offline (file://) keeps the YAML download as the only path.
+      +   'var CAN_POST=(location.protocol==="http:"||location.protocol==="https:");'
       +   'function ensureBar(){'
       +     'if(document.querySelector(".fb-bar"))return;'
       +     'var bar=document.createElement("div");bar.className="fb-bar";'
       +     'var html="";'
-      +     'html+="<button type=\\"button\\" class=\\"fb-bar-btn fb-dl-btn\\" title=\\"Download all your annotations as a yaml file\\">Download feedback (.yaml) <span class=\\"fb-count\\">(0)</span></button>";'
-      // One-click submit to GitHub — works on any host (no dashboard server
-      // needed), so an emailed/Pages-hosted report can file feedback directly.
-      +     'html+="<button type=\\"button\\" class=\\"fb-bar-btn fb-gh-issue\\" style=\\"margin-left:6px;background:#1f883d\\" title=\\"Open a prefilled GitHub issue with your feedback\\">→ GitHub issue</button>";'
+      +     'if(CAN_POST){html+="<button type=\\"button\\" class=\\"fb-bar-btn fb-send-btn\\" title=\\"Send your annotations straight to the dashboard\\">Send to dashboard <span class=\\"fb-count\\">(0)</span></button>";html+="<button type=\\"button\\" class=\\"fb-bar-btn fb-dl-btn\\" style=\\"margin-left:6px;background:#f1f5f9;color:#334155;border-color:#cbd5e1\\" title=\\"Or download a yaml to send back manually\\">Download .yaml</button>";}'
+      +     'else{html+="<button type=\\"button\\" class=\\"fb-bar-btn fb-dl-btn\\" title=\\"Download all your annotations as a yaml file; send it back to the investigation\\">Generate feedback report <span class=\\"fb-count\\">(0)</span></button>";}'
       +     'bar.innerHTML=html;'
       +     'document.body.appendChild(bar);'
+      +     'var sb=bar.querySelector(".fb-send-btn");if(sb)sb.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();submitFeedback();});'
       +     'var db=bar.querySelector(".fb-dl-btn");if(db)db.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();downloadFeedback();});'
-      +     'var gi=bar.querySelector(".fb-gh-issue");if(gi)gi.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();openGhIssue();});'
       +   '}'
-      // Proposed-input Accept/Decline and "+ Add to investigation" record
-      // their decision through this — a NORMAL annotation, the same channel
-      // the manual 💬 comments use. Author defaults to the reviewer's saved
-      // name (fb_author) so decisions are attributed like every other comment.
-      +   'window._fbAddAnnotation=function(sid,text,author){'
-      +     'if(!sid||!text)return;'
-      +     'author=author||safeGet("fb_author")||"reviewer";'
-      +     'var d=load();d[sid]=d[sid]||[];'
-      +     'd[sid].push({ts:new Date().toISOString(),author:author,text:text});'
-      +     'save(d);var host=document.getElementById(sid);if(host&&host.dataset&&host.dataset.fbAttached)renderExisting(host,sid);updateBadges();updateBarCount();'
-      +   '};'
+      +   'function submitFeedback(){'
+      +     'var d=load();if(!countAll()){alert("No feedback yet — click 💬 next to any section first.");return;}'
+      +     'var ts=new Date().toISOString();'
+      +     'var meta={investigation:INV,report_id:REPORT_ID,generated_at:ts,page_title:document.title,source_url:location.href};'
+      +     'var sb=document.querySelector(".fb-send-btn");if(sb){sb.disabled=true;sb.textContent="Sending…";}'
+      +     'fetch("/api/feedback-import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({meta:meta,annotations:d})})'
+      +       '.then(function(r){return r.json().catch(function(){return {};}).then(function(j){return {ok:r.ok,j:j};});})'
+      +       '.then(function(res){'
+      +         'if(res.ok&&res.j&&res.j.ok){alert("Sent "+(res.j.n_entries||countAll())+" annotation(s) to the dashboard.\\nSaved at "+res.j.path);}'
+      +         'else{alert("Could not send to the dashboard ("+((res.j&&res.j.error)||"error")+"). Falling back to a .yaml download.");downloadFeedback();}'
+      +       '})'
+      +       '.catch(function(err){alert("Could not reach the dashboard ("+err+"). Falling back to a .yaml download.");downloadFeedback();})'
+      +       '.then(function(){var b=document.querySelector(".fb-send-btn");if(b){b.disabled=false;b.innerHTML="Send to dashboard <span class=\\"fb-count\\">("+countAll()+")</span>";}});'
+      +   '}'
       +   'function serialiseYaml(meta,data){'
       +     'var L=["# Inline feedback report","# Generated from the v2ecoli inline-feedback widget.","# Import with: pbg-feedback-import <this-file>"];'
       +     'L.push("meta:");'
       +     'Object.keys(meta).forEach(function(k){L.push("  "+k+": "+JSON.stringify(meta[k]));});'
       +     'var keys=Object.keys(data).sort();'
-      +     'if(!keys.length){L.push("annotations: {}");}'
-      +     'else{L.push("annotations:");keys.forEach(function(sid){'
+      +     'if(!keys.length){L.push("annotations: {}");return L.join("\\n")+"\\n";}'
+      +     'L.push("annotations:");'
+      +     'keys.forEach(function(sid){'
       +       '(data[sid]||[]).forEach(function(e,i){if(i===0)L.push("  "+JSON.stringify(sid)+":");L.push("    - ts: "+JSON.stringify(e.ts));if(e.author)L.push("      author: "+JSON.stringify(e.author));L.push("      text: "+JSON.stringify(e.text));});'
-      +     '});}'
+      +     '});'
       +     'return L.join("\\n")+"\\n";'
       +   '}'
       +   'function downloadFeedback(){'
@@ -9513,46 +7552,6 @@
       +     'var url=URL.createObjectURL(blob);var a=document.createElement("a");'
       +     'a.href=url;a.download="feedback-"+INV+"-"+ts.slice(0,19).replace(/[:T]/g,"-")+".yaml";'
       +     'document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},0);'
-      +   '}'
-      // GitHub submit helpers. Resolve owner/repo from a github.io host
-      // (vivarium-collective.github.io/<repo>/…), else ask once and remember.
-      +   'function ghRepo(){'
-      // 1) repo injected at generation time from the workspace git remote.
-      +     'if(GH_REPO)return GH_REPO;'
-      // 2) github.io host detection (vivarium-collective.github.io/<repo>/…).
-      +     'try{var h=location.hostname,p=location.pathname.split("/").filter(Boolean);'
-      +       'if(/\\.github\\.io$/.test(h)&&p.length)return h.split(".")[0]+"/"+p[0];}catch(e){}'
-      // 3) remembered prompt answer, then a one-time prompt.
-      +     'var v=safeGet("fb_gh_repo");if(v)return v;'
-      +     'var ans=prompt("GitHub repo for this feedback (owner/repo):","");'
-      +     'if(ans){ans=ans.replace(/^https?:\\/\\/github.com\\//,"").replace(/\\.git$/,"").replace(/\\/+$/,"");safeSet("fb_gh_repo",ans);}'
-      +     'return ans||"";'
-      +   '}'
-      // Per-section GitHub issue: file ONE annotation as a focused issue,
-      // titled with the section id and bodied with the annotation text, a
-      // short quote of the section, and a deep-link anchor back to it.
-      +   'function sectionQuote(sid){try{var el=document.getElementById(sid);if(!el)return "";'
-      +     'var clone=el.cloneNode(true);clone.querySelectorAll(".fb-add,.fb-editor,.fb-entries,.fb-bar,script,style").forEach(function(n){n.remove();});'
-      +     'var t=(clone.textContent||"").replace(/\\s+/g," ").trim();return t.slice(0,280)+(t.length>280?"\\u2026":"");}catch(e){return "";}}'
-      +   'function openGhIssueForSection(sid,text,author){'
-      +     'var repo=ghRepo();if(!repo)return;'
-      +     'var anchor=location.origin+location.pathname+"#"+encodeURIComponent(sid);'
-      +     'var quote=sectionQuote(sid);'
-      +     'var body="Reviewer feedback on the **"+INV+"** investigation report.\\n\\n"'
-      +       '+"**Section:** `"+sid+"`\\n"'
-      +       '+(author?("**Reviewer:** "+author+"\\n"):"")'
-      +       '+"\\n**Feedback:**\\n> "+String(text||"").replace(/\\n/g,"\\n> ")+"\\n"'
-      +       '+(quote?("\\n**Section context:**\\n> "+quote+"\\n"):"")'
-      +       '+"\\n[Open this section in the report]("+anchor+")\\n";'
-      +     'var title="Reviewer feedback ["+INV+"]: "+sid;'
-      +     'var url="https://github.com/"+repo+"/issues/new?labels=feedback&title="+encodeURIComponent(title)+"&body="+encodeURIComponent(body);'
-      +     'var w=window.open(url,"_blank","noopener");if(!w)location.href=url;'
-      +   '}'
-      +   'function fbYaml(){var meta={investigation:INV,report_id:REPORT_ID,generated_at:new Date().toISOString(),page_title:document.title,source_url:location.href};return serialiseYaml(meta,load());}'
-      +   'function openGhIssue(){if(!countAll()){alert("No feedback yet — click the 💬 icons first.");return;}var repo=ghRepo();if(!repo)return;'
-      +     'var body="Inline feedback from the investigation report.\\n\\n```yaml\\n"+fbYaml()+"```\\n";'
-      +     'var url="https://github.com/"+repo+"/issues/new?labels=feedback&title="+encodeURIComponent("Reviewer feedback: "+INV)+"&body="+encodeURIComponent(body);'
-      +     'var w=window.open(url,"_blank","noopener");if(!w)location.href=url;'
       +   '}'
       +   'function init(){attachAll();ensureBar();var mo=new MutationObserver(function(){attachAll();});mo.observe(document.body,{childList:true,subtree:true});}'
       +   'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();'
@@ -9694,24 +7693,12 @@
       }
     }
 
-    // List-first (State A): no investigation selected yet + several available ->
-    // prompt the user to pick one rather than dumping every investigation's
-    // studies into the rail.
-    if (!currentSlug && groups.length > 1) {
-      host.innerHTML = '<div style="padding:6px 14px;color:#94a3b8;font-style:italic">'
-        + 'Select an investigation &rarr;</div>';
-      return;
-    }
-
     // Flat-list mode: when there's exactly one investigation (no
     // ungrouped studies), render its studies as a flat list directly
     // under the "Studies" rail-section label — no redundant group header.
     if (groups.length === 1 && groups[0].name !== '__ungrouped__') {
       var g = groups[0];
-      var _iset = (window._isetIndex || []).filter(function(i){ return i.name === g.name; })[0] || {};
-      host.innerHTML = '<div class="rail-iset-name" title="' + _esc(_iset.title || g.name) + '">'
-        + _esc(_iset.title || g.name) + '</div>'
-        + g.studies.map(function(s) { return _railStudyItem(s); }).join('');
+      host.innerHTML = g.studies.map(function(s) { return _railStudyItem(s); }).join('');
       return;
     }
 
@@ -10271,7 +8258,7 @@
       '</div>' +
       '<div class="investigation-detail-panel" data-tab="composites">' +
         '<div style="margin-bottom:8px">' +
-          '<button class="action-btn js-authoring" onclick="_openAddCompositeModal()">+ Add composite</button>' +
+          '<button class="action-btn" onclick="_openAddCompositeModal()">+ Add composite</button>' +
         '</div>' +
         '<div id="inv-composites-list" style="display:grid;grid-template-columns:220px 1fr;gap:16px">' +
           '<div id="inv-composites-sidebar"></div>' +
@@ -10282,7 +8269,7 @@
               '</button>' +
             '</div>' +
             '<iframe id="inv-composite-explore-frame"' +
-                    ' src="/bigraph-loom/index.html"' +
+                    ' src="/loom-explore/index.html"' +
                     ' title="Composite wiring"' +
                     ' style="width:100%;height:520px;border:1px solid #ddd;background:#fff;display:none">' +
             '</iframe>' +
@@ -10292,7 +8279,7 @@
       '</div>' +
       '<div class="investigation-detail-panel" data-tab="groups">' +
         '<section class="ws-groups" style="padding:10px">' +
-          '<button class="btn-mini js-authoring" style="margin-bottom:8px" onclick="_openAddGroupModal()">+ Add group</button>' +
+          '<button class="btn-mini" style="margin-bottom:8px" onclick="_openAddGroupModal()">+ Add group</button>' +
           '<div id="ws-groups-list"></div>' +
         '</section>' +
       '</div>' +
@@ -10311,17 +8298,17 @@
           ' Emit entire state (root)' +
         '</label>' +
         '<div id="inv-observables-tree" style="font-family:monospace;font-size:0.9em"></div>' +
-        '<button class="action-btn js-authoring" onclick="_saveObservables()">Save observables</button>' +
+        '<button class="action-btn" onclick="_saveObservables()">Save observables</button>' +
         '<div id="inv-observables-status" style="margin-top:8px;font-size:0.9em;color:#555"></div>' +
       '</div>' +
       '<div class="investigation-detail-panel" data-tab="viz">' +
         '<section class="ws-comparisons" style="margin-bottom:16px;padding:10px;border:1px solid #eee">' +
           '<h3 style="margin-top:0">Comparisons</h3>' +
           '<div id="ws-comparisons-list"></div>' +
-          '<button class="btn-mini js-authoring" onclick="_openAddComparisonModal()">+ Add comparison</button>' +
+          '<button class="btn-mini" onclick="_openAddComparisonModal()">+ Add comparison</button>' +
         '</section>' +
         (vizFiles.length ?
-          '<button class="btn-mini js-authoring" style="margin-bottom:8px" onclick="_openAddVizModal(\'' + _esc(name) + '\')">+ Add visualization</button>' +
+          '<button class="btn-mini" style="margin-bottom:8px" onclick="_openAddVizModal(\'' + _esc(name) + '\')">+ Add visualization</button>' +
           vizFiles.map(function(v) {
             return '<h4 style="margin-bottom:4px">' + _esc(v.name) + '</h4>' +
                    '<iframe class="viz-frame" src="/' + _esc(v.path) + '?ts=' + Date.now() + '"></iframe>';
@@ -10329,7 +8316,7 @@
           '<p class="empty-state">No visualizations declared in <code>spec.yaml</code> yet. ' +
             'Click <em>Add visualization</em> to scaffold one, or edit ' +
             '<code>investigations/' + _esc(name) + '/spec.yaml</code> directly and click <em>Run</em>.</p>' +
-          '<button class="action-btn js-authoring" onclick="_openAddVizModal(\'' + _esc(name) + '\')">+ Add visualization</button>') +
+          '<button class="action-btn" onclick="_openAddVizModal(\'' + _esc(name) + '\')">+ Add visualization</button>') +
       '</div>' +
       '<div class="investigation-detail-panel" data-tab="conclusions">' +
         '<div class="ws-conclusions" style="padding:10px">' +
@@ -10349,7 +8336,7 @@
             '<strong>Next steps</strong>' +
             '<textarea id="cn-next-steps" rows="6" style="width:100%;font-family:monospace"></textarea>' +
           '</label>' +
-          '<button class="btn-primary js-authoring" onclick="_saveConclusions()">Save</button>' +
+          '<button class="btn-primary" onclick="_saveConclusions()">Save</button>' +
           '<h4 style="margin-top:16px">Raw markdown (combined)</h4>' +
           '<pre id="conclusions-preview" style="background:#f5f5f5;padding:10px;white-space:pre-wrap;font-family:monospace"></pre>' +
         '</div>' +
@@ -11910,8 +9897,7 @@
       fetch('/api/visualization-instances').then(function(r) { return r.json(); }),
       fetch('/workspace.yaml').then(function(r) { return r.ok ? r.text() : ''; }),
     ]).then(function(parts) {
-      // Filter out Analysis classes — the workspace viz picker only shows Visualization classes.
-      var classes = ((parts[0] && parts[0].classes) || []).filter(function(c) { return c.kind !== 'analysis'; });
+      var classes = (parts[0] && parts[0].classes) || [];
       var instances = (parts[1] && parts[1].instances) || [];
       if (classSel) {
         classes.forEach(function(c) {
@@ -11968,8 +9954,7 @@
       fetch('/api/visualization-classes').then(function(r) { return r.json(); }),
     ]).then(function(parts) {
       var instances = (parts[0] && parts[0].instances) || [];
-      // Filter out Analysis classes — the add-viz picker only offers Visualization classes.
-      var classes = ((parts[1] && parts[1].classes) || []).filter(function(c) { return c.kind !== 'analysis'; });
+      var classes = (parts[1] && parts[1].classes) || [];
       if (instances.length) {
         var gi = document.createElement('optgroup');
         gi.label = 'Registered instances (config pre-filled)';
@@ -12221,40 +10206,31 @@
       _escSim(status || '?') + '</span>';
   }
 
-  // Emitter-type pill, keyed by the API's emitter_type ("SQLite"/"Parquet"/
-  // "XArray"). Colors live in CSS classes emitter-sqlite/parquet/xarray.
-  function _simEmitterPill(emitterType) {
-    var t = (emitterType || 'SQLite');
-    var cls = 'emitter-' + t.toLowerCase();
-    return '<span class="emitter-pill ' + cls + '" ' +
-      'title="emitter / persistence format">' + _escSim(t) + '</span>';
+  function _simStudyChips(studies) {
+    if (!studies || !studies.length) return '<span style="color:#9ca3af;">—</span>';
+    return studies.map(function (name) {
+      return '<a href="/studies/' + encodeURIComponent(name) +
+        '" title="Open study: ' + _escSim(name) +
+        '" style="display:inline-block; background:#eef2ff; color:#3730a3; ' +
+        'padding:1px 7px; margin:0 2px 2px 0; border-radius:10px; font-size:12px; ' +
+        'text-decoration:none;">' + _escSim(name) + '</a>';
+    }).join('');
   }
 
-  // Format an epoch-seconds timestamp as a readable local time.
-  function _simFmtTime(sec) {
-    if (!sec) return '—';
-    return new Date(sec * 1000).toLocaleString();
+  function _simShortId(run_id) {
+    if (!run_id) return '';
+    // Show the last 6 chars (the hash suffix) of "<spec>__<ts>__<hash6>".
+    return run_id.slice(-6);
   }
 
-  // Module-scope cache. _simRows = all runs from the API (the {simulations}
-  // shape from simulations_index.list_simulations); _simCurrent = the current
-  // investigation slug (default filter target, may be null).
+  // Module-scope cache so the filter and delete flows can read current rows.
   window._simRows = [];
-  window._simCurrent = null;
-
-  // Investigation/study come from the index's *_slug fields; the study slug
-  // falls back to the first cross-referenced study name.
-  function _simInvestigation(row) { return row.investigation_slug || ''; }
-  function _simStudy(row) {
-    return row.study_slug || (row.studies && row.studies.length ? row.studies[0] : '');
-  }
 
   /** Open the Composite Explorer for a specific past simulation.
    *
-   *  Mirrors _openCompositeExplorer but also seeds ?run_id=, so
+   *  Mirrors _openCompositeExplorer (line 2437) but also seeds ?run_id=, so
    *  _initCompositeExplorer picks it up and renders the run's results +
-   *  viz_html in the Run tab. Only meaningful for runs with a spec_id
-   *  (Composite Explorer scratch runs / runs_meta rows).
+   *  viz_html in the Run tab.
    */
   function _openSimulationInExplorer(run_id, spec_id) {
     var url = new URL(window.location.href);
@@ -12266,96 +10242,73 @@
   }
   window._openSimulationInExplorer = _openSimulationInExplorer;
 
-  function _renderSimRow(row) {
-    var inv = _simInvestigation(row);
-    var invCell = inv
-      ? '<code style="font-size:12px; color:#374151;">' + _escSim(inv) + '</code>'
-      : '<span style="color:#9ca3af;">—</span>';
-    var study = _simStudy(row);
-    var studyCell = study
-      ? '<code style="font-size:12px; color:#374151;">' + _escSim(study) + '</code>'
-      : '<span style="color:#9ca3af;">—</span>';
-    var runId = row.run_id || '';
-    var runLabel = row.sim_name || row.label || runId;
-    var runTitle = ' title="' + _escSim(runId + (row.db_path ? '\n' + row.db_path : '')) + '"';
-    var timeSec = row.completed_at || row.started_at;
-    // Actions: open-in-explorer (only when there's a spec_id to seed the
-    // explorer with) + delete. The {simulations} shape carries spec_id +
-    // db_path so both are reconstructable.
-    var specId = row.spec_id || '';
-    var explorerBtn = specId
-      ? '<a href="?id=' + encodeURIComponent(specId) +
-          '&run_id=' + encodeURIComponent(runId) + '#composite-explore" ' +
-          'class="action-btn js-authoring" title="Open in Composite Explorer" ' +
-          'style="text-decoration:none;" ' +
-          'onclick="event.preventDefault(); _openSimulationInExplorer(\'' +
-            _escSim(runId) + '\', \'' + _escSim(specId) + '\');">Open</a>'
+  function _renderSimRow(sim) {
+    var composite = _escSim(sim.spec_id || '');
+    // Last segment bold for scannability
+    var segs = composite.split('.');
+    if (segs.length > 1) {
+      segs[segs.length - 1] = '<strong>' + segs[segs.length - 1] + '</strong>';
+      composite = segs.join('.');
+    }
+    var stepsTxt = (sim.status === 'running')
+      ? (sim.progress_step || 0) + '/' + (sim.n_steps || '?')
+      : (sim.n_steps != null ? String(sim.n_steps) : '—');
+    var label = sim.sim_name || sim.label || '';
+    var startedFull = sim.started_at
+      ? new Date(sim.started_at * 1000).toISOString()
       : '';
-    var deleteBtn = '<button class="action-btn js-authoring" title="Delete simulation" ' +
-      'onclick="_deleteSimulationRun(\'' + _escSim(runId) + '\')">🗑</button>';
+    var runTooltip = (sim.run_id || '') + '\n' + (sim.db_path || '');
+    var investigation = sim.investigation_slug || '';
+    var investigationCell = investigation
+      ? '<code style="font-size:12px; color:#374151;">' +
+          _escSim(investigation) + '</code>'
+      : '<span style="color:#9ca3af;">—</span>';
     return (
-      '<tr data-run-id="' + _escSim(runId) + '" style="border-bottom:1px solid #f3f4f6;">' +
-      '<td style="padding:6px 8px;">' + invCell + '</td>' +
-      '<td style="padding:6px 8px;">' + studyCell + '</td>' +
-      '<td style="padding:6px 8px;"><code style="font-size:11px; color:#6b7280;"' +
-        runTitle + '>' + _escSim(runLabel) + '</code></td>' +
-      '<td style="padding:6px 8px;">' + _simEmitterPill(row.emitter_type) + '</td>' +
-      '<td style="padding:6px 8px; color:#6b7280;">' + _escSim(_simFmtTime(timeSec)) + '</td>' +
-      '<td style="padding:6px 8px;">' + _simStatusChip(row.status) + '</td>' +
-      '<td style="padding:6px 8px; text-align:center; white-space:nowrap;">' +
-        explorerBtn + (explorerBtn && deleteBtn ? ' ' : '') + deleteBtn + '</td>' +
+      '<tr data-run-id="' + _escSim(sim.run_id) + '" ' +
+        'style="border-bottom:1px solid #f3f4f6;">' +
+      '<td style="padding:6px 8px;">' +
+        '<a href="?id=' + encodeURIComponent(sim.spec_id) +
+        '&run_id=' + encodeURIComponent(sim.run_id) + '#composite-explore" ' +
+        'class="sim-composite-link" ' +
+        'style="text-decoration:none; color:inherit;" ' +
+        'onclick="event.preventDefault(); _openSimulationInExplorer(\'' +
+          _escSim(sim.run_id) + '\', \'' + _escSim(sim.spec_id) + '\');" ' +
+        'onmouseover="this.style.textDecoration=\'underline\';" ' +
+        'onmouseout="this.style.textDecoration=\'none\';">' +
+        '<code>' + composite + '</code></a>' +
+      '</td>' +
+      '<td style="padding:6px 8px;">' + investigationCell + '</td>' +
+      '<td style="padding:6px 8px;">' + _simStudyChips(sim.studies) + '</td>' +
+      '<td style="padding:6px 8px;">' + _simStatusChip(sim.status) + '</td>' +
+      '<td style="padding:6px 8px;">' + _escSim(stepsTxt) + '</td>' +
+      '<td style="padding:6px 8px; color:#374151;">' + _escSim(label) + '</td>' +
+      '<td style="padding:6px 8px; color:#6b7280;" title="' + _escSim(startedFull) +
+        '">' + _escSim(_simRelativeTime(sim.started_at)) + '</td>' +
+      '<td style="padding:6px 8px;"><code title="' + _escSim(runTooltip) +
+        '" style="font-size:11px; color:#6b7280;">' + _escSim(_simShortId(sim.run_id)) +
+        '</code></td>' +
+      '<td style="padding:6px 8px; text-align:center;">' +
+        '<button class="action-btn" title="Delete simulation" ' +
+        'onclick="_deleteSimulationRun(\'' + _escSim(sim.run_id) + '\')">🗑</button>' +
+      '</td>' +
       '</tr>'
     );
   }
 
-  // Populate the Study + Emitter dropdowns from the data (preserving any
-  // current selection), then render rows through the active filters.
   function _applySimFilter() {
+    var q = (document.getElementById('sim-filter') || {}).value || '';
+    q = q.toLowerCase().trim();
     var rows = window._simRows || [];
-    var allToggle = document.getElementById('sim-all-toggle');
-    var studySel  = document.getElementById('sim-study-filter');
-    var emitterSel = document.getElementById('sim-emitter-filter');
-
-    var showAll = allToggle ? allToggle.checked : false;
-    var studyVal = studySel ? studySel.value : '';
-    var emitterVal = emitterSel ? emitterSel.value : '';
-
-    var visible = rows.filter(function (r) {
-      if (!showAll && window._simCurrent && _simInvestigation(r) !== window._simCurrent) return false;
-      if (studyVal && _simStudy(r) !== studyVal) return false;
-      if (emitterVal && (r.emitter_type || 'SQLite') !== emitterVal) return false;
-      return true;
-    });
-
+    var visible = q ? rows.filter(function (s) {
+      var hay = (s.spec_id + ' ' + (s.sim_name || '') + ' ' + (s.label || '') +
+                  ' ' + (s.studies || []).join(' ') +
+                  ' ' + (s.investigation_slug || '') +
+                  ' ' + (s.study_slug || '')).toLowerCase();
+      return hay.indexOf(q) >= 0;
+    }) : rows;
     var tbody = document.getElementById('sim-tbody');
-    var table = document.getElementById('sim-table');
-    var empty = document.getElementById('sim-empty');
-    if (tbody) tbody.innerHTML = visible.map(_renderSimRow).join('');
-    if (table) table.style.display = visible.length ? '' : 'none';
-    if (empty) empty.style.display = visible.length ? 'none' : '';
-  }
-
-  // Rebuild the Study + Emitter <select> option lists from the current data.
-  function _populateSimFilters() {
-    var rows = window._simRows || [];
-    var studies = {}, emitters = {};
-    rows.forEach(function (r) {
-      var st = _simStudy(r);
-      if (st) studies[st] = true;
-      emitters[r.emitter_type || 'SQLite'] = true;
-    });
-    function fill(sel, values) {
-      if (!sel) return;
-      var prev = sel.value;
-      var opts = ['<option value="">All</option>'];
-      values.sort().forEach(function (v) {
-        opts.push('<option value="' + _escSim(v) + '">' + _escSim(v) + '</option>');
-      });
-      sel.innerHTML = opts.join('');
-      if (values.indexOf(prev) >= 0) sel.value = prev;
-    }
-    fill(document.getElementById('sim-study-filter'), Object.keys(studies));
-    fill(document.getElementById('sim-emitter-filter'), Object.keys(emitters));
+    if (!tbody) return;
+    tbody.innerHTML = visible.map(_renderSimRow).join('');
   }
 
   function _initSimulations() {
@@ -12366,7 +10319,8 @@
     if (empty)   empty.style.display = 'none';
     if (table)   table.style.display = 'none';
 
-    window.DataSource.loadSimulations()
+    fetch('/api/simulations')
+      .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.error) {
           if (loading) loading.innerHTML =
@@ -12376,9 +10330,12 @@
           return;
         }
         window._simRows = data.simulations || [];
-        window._simCurrent = data.current || null;
         if (loading) loading.style.display = 'none';
-        _populateSimFilters();
+        if (!window._simRows.length) {
+          if (empty) empty.style.display = '';
+          return;
+        }
+        if (table) table.style.display = '';
         _applySimFilter();
       })
       .catch(function (err) {
@@ -12389,17 +10346,13 @@
   }
   window._initSimulations = _initSimulations;
 
-  // Wire the toggle + dropdown filters + refresh button (once, on first init).
+  // Wire the filter input + refresh button + cancel button (once, on first init)
   function _wireSimulationsUiOnce() {
-    [['sim-all-toggle', 'change'],
-     ['sim-study-filter', 'change'],
-     ['sim-emitter-filter', 'change']].forEach(function (pair) {
-      var el = document.getElementById(pair[0]);
-      if (el && !el.dataset.wired) {
-        el.addEventListener(pair[1], _applySimFilter);
-        el.dataset.wired = '1';
-      }
-    });
+    var f = document.getElementById('sim-filter');
+    if (f && !f.dataset.wired) {
+      f.addEventListener('input', _applySimFilter);
+      f.dataset.wired = '1';
+    }
     var r = document.getElementById('sim-refresh');
     if (r && !r.dataset.wired) {
       r.addEventListener('click', _initSimulations);
@@ -12416,10 +10369,6 @@
   }
   window._wireSimulationsUiOnce = _wireSimulationsUiOnce;
 
-  // Confirm + perform a full delete of one simulation (DB rows + history +
-  // run dir + study.yaml refs) via DELETE /api/simulation-run. Reads the row
-  // from the {simulations} cache for spec_id/db_path/studies to populate the
-  // confirmation dialog.
   function _deleteSimulationRun(run_id) {
     _wireSimulationsUiOnce();
     var rows = window._simRows || [];
@@ -12429,22 +10378,20 @@
     }
     if (!sim) return;
 
-    var studies = sim.studies || [];
-    var studiesTxt = studies.length ? studies.map(_escSim).join(', ') : '<em>none</em>';
+    var studiesTxt = (sim.studies && sim.studies.length)
+      ? sim.studies.map(_escSim).join(', ')
+      : '<em>none</em>';
     var stillRunning = (sim.status === 'running')
       ? '<p style="color:#b45309; margin:8px 0 0;"><strong>⚠ This run is still running.</strong> ' +
         'Deleting now will orphan the detached process (it will fail-write later, harmlessly).</p>'
       : '';
-    var composite = sim.spec_id
-      ? '<p style="margin:0 0 8px;">Composite: <code>' + _escSim(sim.spec_id) + '</code></p>'
-      : '';
     var body = document.getElementById('sim-delete-body');
     if (body) body.innerHTML =
       '<p style="margin:0 0 8px;"><code>' + _escSim(run_id) + '</code></p>' +
-      composite +
+      '<p style="margin:0 0 8px;">Composite: <code>' + _escSim(sim.spec_id) + '</code></p>' +
       '<p style="margin:0 0 4px;">This will permanently remove:</p>' +
       '<ul style="margin:0 0 4px 24px;">' +
-        '<li>1 row in <code>' + _escSim(sim.db_path || '?') + '</code></li>' +
+        '<li>1 row in <code>' + _escSim(sim.db_path) + '</code></li>' +
         '<li>All history rows (trajectory data) for this run</li>' +
         '<li>The run directory <code>.pbg/runs/' + _escSim(run_id) + '/</code> (if any)</li>' +
         '<li>References from study.yaml(s): ' + studiesTxt + '</li>' +
@@ -12987,18 +10934,11 @@
   function _generateReportHtmlForCurrentIset() {
     var name = window._currentIset;
     if (!name) return Promise.resolve(null);
-    // Route through DataSource so hosted/snapshot mode (sub-projects #2/#3)
-    // honours the configured source here too.  Direct-fetch fallback keeps
-    // behaviour unchanged when DataSource is not available.
-    var _isetFetch = (window.DataSource && window.DataSource.loadInvestigation)
-      ? window.DataSource.loadInvestigation(name)
-      : fetch('/api/iset/' + encodeURIComponent(name)).then(function (r) { return r.json(); });
-    return _isetFetch.then(function (iset) {
+    return fetch('/api/iset/' + encodeURIComponent(name)).then(function (r) { return r.json(); })
+      .then(function (iset) {
         var studyFetches = (iset.studies || []).map(function (s) {
-          return ((window.DataSource && window.DataSource.loadStudy)
-            ? window.DataSource.loadStudy(s.name).catch(function () { return {spec: {name: s.name}}; })
-            : fetch('/api/study/' + encodeURIComponent(s.name))
-                .then(function (r) { return r.ok ? r.json() : {spec: {name: s.name}}; }))
+          return fetch('/api/study/' + encodeURIComponent(s.name))
+            .then(function (r) { return r.ok ? r.json() : {spec: {name: s.name}}; })
             .then(function (j) { return j.spec || j; });
         });
         var bibFetch = fetch('/api/references-bib')
@@ -13011,15 +10951,11 @@
             .then(function (j) { return {name: s.name, charts: j.charts || []}; })
             .catch(function () { return {name: s.name, charts: []}; });
         });
-        var ghRepoFetch = fetch('/api/github-repo')
-          .then(function (r) { return r.ok ? r.json() : {repo: null}; })
-          .then(function (j) { return (j && j.repo) || null; })
-          .catch(function () { return null; });
-        return Promise.all([Promise.all(studyFetches), bibFetch, Promise.all(chartFetches), ghRepoFetch])
+        return Promise.all([Promise.all(studyFetches), bibFetch, Promise.all(chartFetches)])
           .then(function (arr) {
             var chartsByStudy = {};
             arr[2].forEach(function (c) { chartsByStudy[c.name] = c.charts; });
-            return _buildInvestigationReportHtml(iset, arr[0], arr[1], chartsByStudy, undefined, null, arr[3]);
+            return _buildInvestigationReportHtml(iset, arr[0], arr[1], chartsByStudy);
           });
       });
   }
@@ -13267,101 +11203,5 @@
   });
 
   document.addEventListener('DOMContentLoaded', _refreshGitStatus);
-
-  // -------------------------------------------------------------------------
-  // Spine A3: per-study readiness panel (lint findings)
-  // -------------------------------------------------------------------------
-  // Fetches the deterministic report linter ONCE (/api/report-lint), keys the
-  // findings by study, and fills each `.study-readiness-panel` placeholder a
-  // study section rendered. Mirrors the param-enforcement banner: surfaced per
-  // study, connected to its source (the linter), and labeled code-computed
-  // (vs human-authored). AI-free — pure deterministic linter output. Surfaces
-  // the SP2b-ii readout-migration + SP2c band-citation-gap findings.
-  function _readinessPanelHtml(findings) {
-    var sev = { error: 0, warning: 0, info: 0 };
-    var byCheck = {};
-    findings.forEach(function (f) {
-      var s = f.severity || 'info';
-      if (sev[s] != null) sev[s]++; else sev.info++;
-      var c = f.check || 'other';
-      (byCheck[c] = byCheck[c] || []).push(f);
-    });
-    var gaps = sev.error + sev.warning;
-    var head, bg, bd, col;
-    if (!findings.length) { head = '✓ Ready'; bg = '#f0fdf4'; bd = '#16a34a'; col = '#166534'; }
-    else if (gaps) { head = '⚠ ' + gaps + ' gap' + (gaps === 1 ? '' : 's'); bg = '#fffbeb'; bd = '#f59e0b'; col = '#92400e'; }
-    else { head = 'ℹ ' + sev.info + ' note' + (sev.info === 1 ? '' : 's'); bg = '#eff6ff'; bd = '#3b82f6'; col = '#1e40af'; }
-    var lbl = '<span class="small" style="color:#64748b">code-computed by the report linter (deterministic)</span>';
-    // Ready → no dropdown needed.
-    if (!findings.length) {
-      return '<div class="readiness-banner" style="margin:12px 0;padding:12px 16px;background:' + bg
-        + ';border:1px solid ' + bd + ';border-left-width:5px;border-radius:6px;color:' + col + '">'
-        + '<strong>Readiness: ' + head + '</strong> ' + lbl + '</div>';
-    }
-    // Key info on top: per-check breakdown, most-frequent first (so noise like
-    // viz_stale_vs_latest_run is summarised, not enumerated, until expanded).
-    var checks = Object.keys(byCheck).sort(function (a, b) { return byCheck[b].length - byCheck[a].length; });
-    var breakdown = checks.map(function (c) { return byCheck[c].length + '× ' + _h(c); }).join(' &nbsp;·&nbsp; ');
-    var groups = checks.map(function (c) {
-      var items = byCheck[c].map(function (f) {
-        var s = f.severity || 'info';
-        var dot = s === 'error' ? '#dc2626' : (s === 'warning' ? '#f59e0b' : '#3b82f6');
-        return '<li style="margin-top:3px"><span style="color:' + dot + ';font-weight:700">●</span> ' + _h(f.message || '') + '</li>';
-      }).join('');
-      return '<div style="margin-top:9px"><code>' + _h(c) + '</code> '
-        + '<span class="small" style="color:#94a3b8">(' + byCheck[c].length + ')</span>'
-        + '<ul class="small" style="margin:3px 0 0 18px;padding:0">' + items + '</ul></div>';
-    }).join('');
-    return '<details class="readiness-banner" style="margin:12px 0;background:' + bg
-      + ';border:1px solid ' + bd + ';border-left-width:5px;border-radius:6px;color:' + col + '">'
-      + '<summary style="padding:12px 16px;cursor:pointer;list-style:none;outline:none">'
-      + '<strong>Readiness: ' + head + '</strong> ' + lbl
-      + '<div class="small" style="color:#64748b;margin-top:5px">' + breakdown
-      + ' &nbsp;·&nbsp; <span style="opacity:.7;font-style:italic">click to expand</span></div>'
-      + '</summary>'
-      + '<div style="padding:2px 16px 12px 16px">' + groups + '</div>'
-      + '</details>';
-  }
-  // Idempotent + safe to call repeatedly. The linter findings are fetched ONCE
-  // and cached on the function; every call (re-)keys whatever
-  // `.study-readiness-panel` placeholders are currently in the DOM by
-  // overwriting their innerHTML — so a second call after more panels render
-  // fills the new ones without issuing a duplicate fetch or double-rendering.
-  // No outer closure state is used (cache lives on the function object) so the
-  // investigation report can bake an exact copy via `.toString()` — see
-  // _buildInvestigationReportHtml; the served/downloaded report has no
-  // walkthrough.js, so it carries its own copy and invokes it after its study
-  // sections render (the placeholders are emitted async, after DOMContentLoaded).
-  function _populateReadinessPanels() {
-    var panels = document.querySelectorAll('.study-readiness-panel');
-    if (!panels.length) return;
-    function _apply(byStudy) {
-      document.querySelectorAll('.study-readiness-panel').forEach(function (el) {
-        var slug = el.getAttribute('data-study') || '';
-        el.innerHTML = _readinessPanelHtml(byStudy[slug] || []);
-      });
-    }
-    if (_populateReadinessPanels._cache) { _apply(_populateReadinessPanels._cache); return; }
-    if (_populateReadinessPanels._pending) return;
-    _populateReadinessPanels._pending = true;
-    fetch('/api/report-lint')
-      .then(function (r) { return r.ok ? r.json() : { findings: [] }; })
-      .then(function (j) {
-        var byStudy = {};
-        (j.findings || []).forEach(function (f) {
-          var k = f.study || '<workspace>';
-          (byStudy[k] = byStudy[k] || []).push(f);
-        });
-        _populateReadinessPanels._pending = false;
-        _populateReadinessPanels._cache = byStudy;
-        _apply(byStudy);
-      })
-      .catch(function () { _populateReadinessPanels._pending = false; });
-  }
-  window._populateReadinessPanels = _populateReadinessPanels;
-  // study-detail / live-DOM contexts: panels that exist at parse time get
-  // populated on load. The investigation report renders its panels async, so it
-  // additionally bakes + invokes this from its own render-completion (below).
-  document.addEventListener('DOMContentLoaded', _populateReadinessPanels);
 
 })();
