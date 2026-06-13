@@ -28,8 +28,17 @@ def _proc_node(address, config, wires_in, wires_out, interval=1.0):
     }
 
 
-def build_loop(supply_rate=2.0, *, seed_membrane=40.0, seed_precursor=10.0):
-    """A Composite of the minimal autopoietic loop. supply_rate=0 starves it."""
+def build_loop(supply_rate=2.0, *, seed_membrane=40.0, seed_precursor=10.0,
+               external_membrane=False):
+    """A Composite of the minimal autopoietic loop. supply_rate=0 starves it.
+
+    ``external_membrane=True`` adds a pbg-superpowers Intervention that CLAMPS
+    membrane_lipids to its seed value every step — an externally-maintained
+    boundary. This is the negative control the reviewers asked for: a system that
+    is sustained from OUTSIDE rather than self-producing. Run it starved
+    (supply_rate=0) and the identity should NOT collapse (precariousness fails),
+    showing the metric discriminates self-production from external maintenance.
+    """
     core = _core()
     state = {
         # --- shared molecular stores (toy counts) ---
@@ -58,6 +67,13 @@ def build_loop(supply_rate=2.0, *, seed_membrane=40.0, seed_precursor=10.0):
             {"membrane_lipids": ["membrane_lipids"], "volume": ["volume"]},
             {"volume": ["volume"]}),
     }
+    if external_membrane:
+        # Negative control: an externally-maintained boundary (clamped, not
+        # self-produced) — the membrane is held at its seed value from outside.
+        from pbg_superpowers.intervention import register_intervention, intervention_node
+        register_intervention(core)
+        state["external_membrane"] = intervention_node(
+            ["membrane_lipids"], mode="set", value=float(seed_membrane))
     return Composite({"state": state}, core=core)
 
 

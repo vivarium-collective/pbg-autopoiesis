@@ -146,3 +146,17 @@ discovery_implications:
   - id: external-membrane-negative-control
     title: Externally-maintained membrane (should FAIL)
     motivation: If the membrane is supplied externally rather than self-produced, precariousness and closure should FAIL — calibrating the metric and showing discriminative power (review C1/C2/C9).
+controls:
+- name: self-producing-loop
+  kind: positive
+  hypothesis: A genuinely self-producing loop should CLOSE and be precarious — the calibration point at the autopoietic end of the metric.
+  expected: closure CLOSED + collapses when starved
+  observed: closure gap 0, precariousness 0.035
+  result: PASS
+- name: externally-maintained-membrane
+  kind: negative
+  hypothesis: If the membrane is clamped externally (not self-produced), the identity should NOT collapse when starved — precariousness is a property of self-production, not external maintenance.
+  expected: persists when starved (precariousness fails)
+  observed: final volume 2.93 vs starved 0.33 (9x more persistent)
+  result: PASS
+falsifiability: The autopoiesis reading would be unsupported if the externally-maintained-membrane control collapsed like the starved loop (precariousness independent of self-production), or if a random/cyclic network achieved a closed gap — i.e. if the metric did not distinguish self-production from external upkeep or bookkeeping.
