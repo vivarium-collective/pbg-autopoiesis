@@ -156,6 +156,11 @@ def _apply_meter(study_path, measures, context, findings_fn, run_name, composite
                       "outcomes": {t: dict(o) for t, o in outcomes.items()}}]
     study["pipeline_gate"]["gate_evaluator"] = verdict
     study["findings"] = findings_fn(context, outcomes)
+    # Record cross-seed robustness when the metric function replicated (the rigor
+    # scorecard reads robustness.n_replicates / seeds). Stochastic studies become
+    # a distribution, not a single run.
+    if isinstance(context, dict) and context.get("robustness"):
+        study["robustness"] = context["robustness"]
     with study_path.open("w", encoding="utf-8") as f:
         _yaml.dump(study, f)
     _report(study_path.parent.name, verdict, outcomes)
@@ -188,22 +193,31 @@ def sync_study2():
 
 def _chemotaxis_findings(context, outcomes):
     chemo, blind = context["chemo"], context["blind"]
+    rob = context.get("robustness") or {}
+    n = rob.get("n_replicates", 1)
+    adv_std = ((rob.get("per_measure") or {}).get("survival_advantage", {}) or {}).get("std", 0.0)
+    k = rob.get("seeds_with_advantage", n)
+    rob_phrase = (f" (mean ± {adv_std:.2f} across {n} seeds; {k}/{n} favour sensing)"
+                  if n > 1 else "")
     return [
         {"id": "F-01", "kind": "biological", "status": "confirms",
+         "tier": "interpretation", "mechanism_origin": "engineered",
          "statement": (f"Agency in service of survival: chemotactic agents climb the gradient, "
                        f"find food, and survive ({chemo['survival']*100:.0f}%), while blind agents "
                        f"random-walk and dissolve (only {blind['survival']*100:.0f}% survive) — a "
-                       f"{outcomes['agency-advantage']['observed']:.1f}× survival advantage. Without "
-                       f"sensing, the agent cannot maintain viability."),
+                       f"{outcomes['agency-advantage']['observed']:.1f}× survival advantage"
+                       f"{rob_phrase}. Without sensing, the agent cannot maintain viability."),
          "evidence": {"from_test": "agency-advantage",
                       "observed": outcomes["agency-advantage"]["observed"],
                       "units": "chemotactic/blind survival"}},
         {"id": "F-02", "kind": "biological", "status": "confirms",
+         "tier": "interpretation", "mechanism_origin": "engineered",
          "statement": (f"Sense-making: the nutrient gradient is meaningful from the perspective of "
                        f"the precarious identity — chemotactic agents experience "
                        f"{outcomes['sense-making']['observed']:.2f}× more food than blind ones. Value "
                        f"(food = viable) is grounded in the cell's own viability, not assigned from "
-                       f"outside. This is where life becomes mind."),
+                       f"outside. (Interpretation: 'sense-making' is the autopoietic reading of an "
+                       f"engineered sensing→tumble response, not a claim of cognition.)"),
          "evidence": {"from_test": "sense-making",
                       "observed": outcomes["sense-making"]["observed"],
                       "units": "chemotactic/blind nutrient experienced"}},
@@ -222,7 +236,7 @@ def sync_study3():
 def _growth_findings(context, outcomes):
     h = context["h"]
     return [
-        {"id": "F-01", "kind": "biological", "status": "confirms",
+        {"id": "F-01", "kind": "biological", "status": "confirms", "tier": "observation",
          "statement": (f"The precarious identity is inherited: one founder grows and divides into a "
                        f"population of {int(outcomes['reproduction']['observed'])}, and noisy "
                        f"partitioning + heritable mutation diversify the lineages (trait spread "
@@ -231,7 +245,7 @@ def _growth_findings(context, outcomes):
          "evidence": {"from_test": "heterogeneity",
                       "observed": outcomes["heterogeneity"]["observed"],
                       "units": "population trait std"}},
-        {"id": "F-02", "kind": "biological", "status": "confirms",
+        {"id": "F-02", "kind": "biological", "status": "confirms", "tier": "mechanism",
          "statement": (f"Reproduction is precarious: {outcomes['division-precariousness']['observed']*100:.0f}% "
                        f"of daughters inherit too little membrane to maintain themselves and dissolve. "
                        f"Division has a viability cost — the same self-maintenance, now across generations."),

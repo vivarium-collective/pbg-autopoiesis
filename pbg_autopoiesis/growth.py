@@ -63,14 +63,32 @@ def simulate(steps=600, *, supply=0.55, decay=0.018, split_sigma=0.15, mut=0.03,
     }
 
 
-def growth_division_metrics():
-    """The study-4 measures (the meter extended to the lineage)."""
-    h = simulate()
-    return {
-        "final_population": float(h["final_pop"]),                          # one → population?
-        "composition_heterogeneity": float(h["hetero"][-1]),               # diverse?
-        "division_mortality": float(h["deaths"] / max(h["divisions"], 1)),  # reproduction's cost
-    }, {"h": h}
+def growth_division_metrics(n_seeds=12):
+    """The study-4 measures (the meter extended to the lineage), replicated across
+    ``n_seeds``.
+
+    Reported measures are the cross-seed MEAN; the context carries a ``robustness``
+    summary so the lineage result is a distribution, not a single run, plus a
+    representative seed-0 history for the figures."""
+    per = {"final_population": [], "composition_heterogeneity": [], "division_mortality": []}
+    h0 = None
+    for s in range(n_seeds):
+        h = simulate(seed=s)
+        if s == 0:
+            h0 = h
+        per["final_population"].append(float(h["final_pop"]))
+        per["composition_heterogeneity"].append(float(h["hetero"][-1]))
+        per["division_mortality"].append(float(h["deaths"] / max(h["divisions"], 1)))
+    measures = {k: float(np.mean(v)) for k, v in per.items()}
+    robustness = {
+        "n_replicates": int(n_seeds),
+        "seeds": list(range(n_seeds)),
+        "parameter_sweep": False,
+        "per_measure": {k: {"mean": float(np.mean(v)), "std": float(np.std(v)),
+                            "min": float(np.min(v)), "max": float(np.max(v))}
+                        for k, v in per.items()},
+    }
+    return measures, {"h": h0, "robustness": robustness}
 
 
 if __name__ == "__main__":

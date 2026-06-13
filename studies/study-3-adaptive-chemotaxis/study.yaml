@@ -93,35 +93,39 @@ runs:
   outcomes:
     chemotaxis-survival:
       result: PASS
-      observed: 0.7875
+      observed: 0.8073
     agency-advantage:
       result: PASS
-      observed: 2.25
+      observed: 2.326
     sense-making:
       result: PASS
-      observed: 1.335
+      observed: 1.3939
 findings:
 - id: F-01
   kind: biological
   status: confirms
-  statement: 'Agency in service of survival: chemotactic agents climb the gradient, find food, and survive (79%), while blind agents random-walk and dissolve (only 35% survive) — a 2.2× survival advantage. Without sensing, the agent cannot maintain viability.'
-  evidence:
-    from_test: agency-advantage
-    observed: 2.25
-    units: chemotactic/blind survival
   tier: interpretation
   mechanism_origin: engineered
+  statement: 'Agency in service of survival: chemotactic agents climb the gradient, find food, and survive
+    (79%), while blind agents random-walk and dissolve (only 35% survive) — a 2.3× survival advantage
+    (mean ± 0.26 across 12 seeds; 12/12 favour sensing). Without sensing, the agent cannot maintain viability.'
+  evidence:
+    from_test: agency-advantage
+    observed: 2.326
+    units: chemotactic/blind survival
 - id: F-02
   kind: biological
   status: confirms
-  statement: "Sense-making: the nutrient gradient is meaningful from the perspective of the precarious identity — chemotactic agents experience 1.33× more food than blind ones. Value (food = viable) is grounded in the cell's own viability, not assigned from outside. This is where life becomes mind."
-  evidence:
-    from_test: sense-making
-    observed: 1.335
-    units: chemotactic/blind nutrient experienced
-
   tier: interpretation
   mechanism_origin: engineered
+  statement: "Sense-making: the nutrient gradient is meaningful from the perspective of the precarious
+    identity — chemotactic agents experience 1.39× more food than blind ones. Value (food = viable) is
+    grounded in the cell's own viability, not assigned from outside. (Interpretation: 'sense-making' is
+    the autopoietic reading of an engineered sensing→tumble response, not a claim of cognition.)"
+  evidence:
+    from_test: sense-making
+    observed: 1.3939
+    units: chemotactic/blind nutrient experienced
 visualizations:
 - name: trajectories
   chart: charts/s3_01_trajectories.png
@@ -132,13 +136,54 @@ visualizations:
 controls:
 - name: blind-motile-agent
   kind: negative
-  hypothesis: A motile-but-non-sensing agent (random walk, no gradient sensing) should survive markedly worse if sensing — not mere movement — drives survival.
+  hypothesis: A motile-but-non-sensing agent (random walk, no gradient sensing) should survive 
+    markedly worse if sensing — not mere movement — drives survival.
   expected: lower survival than chemotactic
   observed: 35% vs 79% survival (chemotactic 2.25x)
   result: PASS
 alternative_hypotheses:
 - claim: The survival gain is plain movement toward resources, not gradient sensing / sense-making.
-  discriminated_by: the blind-motile-agent control (moves by random walk but does not sense the gradient) survives far worse, so movement alone does not account for the gain.
+  discriminated_by: the blind-motile-agent control (moves by random walk but does not sense the 
+    gradient) survives far worse, so movement alone does not account for the gain.
   status: excluded
-falsifiability: The survival advantage — and the agency / sense-making reading — would be unsupported if the motile-but-blind control matched chemotactic survival, i.e. if the gain were due to movement alone rather than gradient sensing.
-limitations: Demonstrates that gradient sensing improves survival and excludes the 'mere movement' explanation (blind-motile control); it does NOT establish cognition or strong agency beyond adaptive behaviour, the sensing->tumble response is an engineered rule (not emergent), and the result rests on a single run (no seed replication).
+falsifiability: The survival advantage — and the agency / sense-making reading — would be 
+  unsupported if the motile-but-blind control matched chemotactic survival, i.e. if the gain were 
+  due to movement alone rather than gradient sensing.
+limitations: Demonstrates that gradient sensing improves survival and excludes the 'mere movement' 
+  explanation (blind-motile control); it does NOT establish cognition or strong agency beyond 
+  adaptive behaviour, the sensing->tumble response is an engineered rule (not emergent), and the 
+  result rests on a single run (no seed replication).
+robustness:
+  n_replicates: 12
+  seeds:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  parameter_sweep: false
+  per_measure:
+    chemotaxis_survival:
+      mean: 0.8072916666666665
+      std: 0.04772379662064713
+      min: 0.7
+      max: 0.875
+    survival_advantage:
+      mean: 2.32601167240987
+      std: 0.25985317127212526
+      min: 2.03125
+      max: 3.0
+    gradient_advantage:
+      mean: 1.3938927622112196
+      std: 0.055366375688177545
+      min: 1.3187543210520927
+      max: 1.4994639572593602
+  control_blind_survival_mean: 0.3510416666666667
+  seeds_with_advantage: 12

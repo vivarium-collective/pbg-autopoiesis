@@ -92,31 +92,32 @@ runs:
       observed: 300.0
     heterogeneity:
       result: PASS
-      observed: 0.1198
+      observed: 0.1142
     division-precariousness:
       result: PASS
-      observed: 0.095
+      observed: 0.0956
 findings:
 - id: F-01
   kind: biological
   status: confirms
+  tier: observation
   statement: 'The precarious identity is inherited: one founder grows and divides into a population of
-    300, and noisy partitioning + heritable mutation diversify the lineages (trait spread 0.12). One individual
+    300, and noisy partitioning + heritable mutation diversify the lineages (trait spread 0.11). One individual
     becomes a population of non-identical individuals.'
   evidence:
     from_test: heterogeneity
-    observed: 0.1198
+    observed: 0.1142
     units: population trait std
 - id: F-02
   kind: biological
   status: confirms
+  tier: mechanism
   statement: 'Reproduction is precarious: 10% of daughters inherit too little membrane to maintain themselves
     and dissolve. Division has a viability cost — the same self-maintenance, now across generations.'
   evidence:
     from_test: division-precariousness
-    observed: 0.095
+    observed: 0.0956
     units: fraction of daughters that dissolve
-
 visualizations:
 - name: population
   chart: charts/s4_01_population.png
@@ -124,3 +125,35 @@ visualizations:
   chart: charts/s4_02_diversification.png
 - name: heterogeneity
   chart: charts/s4_03_heterogeneity.png
+robustness:
+  n_replicates: 12
+  seeds:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  parameter_sweep: false
+  per_measure:
+    final_population:
+      mean: 300.0
+      std: 0.0
+      min: 300.0
+      max: 300.0
+    composition_heterogeneity:
+      mean: 0.11418274436097804
+      std: 0.00660218162842948
+      min: 0.10415221753428523
+      max: 0.12627165387146994
+    division_mortality:
+      mean: 0.09563609539060923
+      std: 0.007014998402417289
+      min: 0.08278976417461113
+      max: 0.11004056795131846
