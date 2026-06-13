@@ -53,6 +53,12 @@ behavior_tests:
   pass_if:
     op: ">="
     value: 3.0
+    provenance:
+      kind: calibration
+      note: >-
+        3x interior/exterior concentration is a clear-separation band: the self-produced
+        membrane case (~60x) passes with margin, calibrated so containment is unambiguous
+        rather than marginal. Not a literature value.
   requires_simulation: spatial-containment
 
 - name: membrane-counters-diffusion
@@ -66,6 +72,12 @@ behavior_tests:
   pass_if:
     op: ">="
     value: 2.0
+    provenance:
+      kind: theory
+      note: >-
+        The membrane must more than double containment vs metabolism-alone for the
+        self-produced boundary (not diffusion physics) to be the cause; 2x is the minimal
+        "membrane dominates" criterion implied by the discriminative claim.
   requires_simulation: spatial-containment
 
 - name: spatial-precariousness
@@ -131,6 +143,10 @@ findings:
   kind: structural
   status: confirms
   tier: observation
+  claim_scope: mechanism      # critique #21 — the membrane (not diffusion physics) is the containing mechanism
+  generality:                 # critique #22 — containment shown across the diffusion (D) sweep
+    axes_tested: [parameter_regime]
+    level: mechanism
   statement: 'The membrane holds the individual together against diffusion: the interior stays 60× more
     concentrated than the medium with the self-produced membrane, vs 4.4× with metabolism alone. The membrane
     — not metabolism — is what contains.'

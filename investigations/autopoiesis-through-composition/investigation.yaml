@@ -50,6 +50,74 @@ studies:
 - study-4-growth-division
 
 - study-5-adversarial-probes
+
+# Investigation-level competing hypotheses (critique #6). statement + predictions are
+# AUTHORED here; support_log is COMPUTED by the coordinator's rollup pass (do not author
+# support_log by hand). Each prediction's `observable` is a real study measure field.
+# Studies link to these via discovery_implications.alternate_hypotheses[].hypothesis_id.
+hypotheses:
+- id: H-closure-without-viability
+  statement: |
+    Operational closure and viability (precariousness) are dissociable: a network can
+    satisfy the closure metric — or merely look organized — yet persist by external upkeep
+    rather than by precarious self-production. Closure alone does not entail viability, and
+    a structurally-incomplete network does not close. If true, the closure metric tracks
+    real self-production rather than bookkeeping.
+  predictions:
+  - observable: closure_gap_size
+    expected: "<= 0 (closed) for the genuine self-producing loop"
+  - observable: broken_network_gap
+    expected: "> 0 — removing the membrane producer opens the gap, so closure is not mere wiring"
+  - observable: external_maintenance_persistence
+    expected: ">= 3.0 — an externally-maintained mimic persists when starved (closed-looking but NOT precarious)"
+  required_controls:
+  - self-producing-loop
+  - missing-self-production-network
+  - externally-maintained-mimic
+  failure_modes:
+  - The externally-maintained mimic collapses like the starved loop (closure and precariousness inseparable).
+  - A random/cyclic network scores a closed gap (closure is mere bookkeeping, not organization).
+  status: supported   # study-5: broken network gap=['membrane_lipids']; mimic 8.9x persistent vs precarious loop
+
+- id: H-viability-without-self-production
+  statement: |
+    Persistence can be supplied from outside: a system whose boundary is maintained
+    externally survives starvation without self-producing it. Such a system is viable in
+    the weak sense (it persists) but is NOT autopoietic — the precariousness metric must
+    reject external upkeep as a route to self-bounded identity. Conversely, copying without
+    self-maintenance does not persist.
+  predictions:
+  - observable: external_maintenance_persistence
+    expected: ">= 3.0 — the externally-maintained system persists when starved"
+  - observable: precariousness_ratio
+    expected: "< 0.3 for the self-producing loop (it collapses when starved) — establishing the contrast"
+  - observable: final_population
+    expected: "collapses (~1) for a no-self-maintenance copying control, despite division firing"
+  required_controls:
+  - externally-maintained-mimic
+  - externally-maintained-membrane
+  - no-self-maintenance-reproduction
+  failure_modes:
+  - The externally-maintained system also collapses when starved (then external upkeep does not confer persistence).
+  - Copying without metabolism still reaches carrying (persistence would not require self-maintenance).
+  status: excluded   # persistence is achievable externally, but the metric rejects it as autopoiesis (study-4/5)
+
+- id: H-self-production-narrow-conditions
+  statement: |
+    Self-production (closure + precariousness, and the membrane's containment) holds only
+    at a narrow, hand-tuned parameter point and is an artifact of a single configuration —
+    it does not generalize across the supply/diffusion regime.
+  predictions:
+  - observable: precariousness_ratio
+    expected: "< 0.3 across the full supply_rate sweep (1.0-3.0), not just at baseline"
+  - observable: containment_ratio
+    expected: ">= 3.0 across the diffusion (D) sweep — membrane containment is regime-robust, not point-tuned"
+  required_controls:
+  - self-producing-loop
+  failure_modes:
+  - Closure/precariousness fail at some swept supply_rate, or containment fails at some D (then the result is a point artifact).
+  status: weakened   # study-1 sweep 5/5 rates + study-2 sweep 5/5 D + study-5 sweep weaken the narrowness claim
+
 acceptance_criteria:
 - study: study-1-membrane-metabolism-loop
   behavior: operational-closure

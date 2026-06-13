@@ -67,6 +67,12 @@ behavior_tests:
   pass_if:
     op: ">="
     value: 0.05
+    provenance:
+      kind: exploratory
+      note: >-
+        Existence-level band (this is an exploratory study): the threshold asks only
+        whether trait diversity emerges at all (spread > ~0), not a calibrated or
+        literature-anchored magnitude.
   requires_simulation: growing-population
 
 - name: division-precariousness
@@ -80,6 +86,12 @@ behavior_tests:
   pass_if:
     op: ">="
     value: 0.01
+    provenance:
+      kind: exploratory
+      note: >-
+        Existence-level band: any non-zero daughter mortality demonstrates reproduction
+        carries a viability cost. Exploratory threshold (does the cost occur at all?),
+        not a calibrated rate.
   requires_simulation: growing-population
 
 # runs + findings + gate_evaluator are computed + written by pbg_autopoiesis.spine.sync_study4()
@@ -106,6 +118,7 @@ findings:
   kind: biological
   status: confirms
   tier: observation
+  claim_scope: behavioral     # critique #21 — measured population-level diversity outcome
   statement: 'The precarious identity is inherited: one founder grows and divides into a population of
     300, and noisy partitioning + heritable mutation diversify the lineages (trait spread 0.11). One individual
     becomes a population of non-identical individuals.'
@@ -117,6 +130,7 @@ findings:
   kind: biological
   status: confirms
   tier: mechanism
+  claim_scope: mechanism      # critique #21 — division-mortality is the self-maintenance cost mechanism across generations
   statement: 'Reproduction is precarious: 10% of daughters inherit too little membrane to maintain themselves
     and dissolve. Division has a viability cost — the same self-maintenance, now across generations.'
   evidence:
@@ -172,9 +186,10 @@ discovery_implications:
     to EMERGE from autopoietic self-maintenance (review C7).
   - No control distinguishing engineered copying from autopoietic self-reproduction.
   alternate_hypotheses:
-  - hypothesis: The population growth demonstrates engineered copying, not autopoietic 
+  - hypothesis: The population growth demonstrates engineered copying, not autopoietic
       self-reproduction.
-    why_plausible: the split/inherit/partition rules are coded, not derived from the 
+    hypothesis_id: H-viability-without-self-production   # critique #6 — copying-without-self-maintenance link
+    why_plausible: the split/inherit/partition rules are coded, not derived from the
       membrane/metabolism loop.
     discriminating_observables:
     - "a no-self-maintenance reproduction control: copies that do not metabolise should still 'divide'

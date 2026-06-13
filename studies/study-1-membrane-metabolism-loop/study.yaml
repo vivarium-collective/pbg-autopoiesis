@@ -73,6 +73,12 @@ behavior_tests:
   pass_if:
     op: "<="
     value: 0
+    provenance:
+      kind: theory
+      note: >-
+        gap = ∅ is the definitional autopoietic criterion (operational closure of
+        constraints; Maturana-Varela, Montévil-Mossio): a network is closed iff every
+        requirement is self-provided. The threshold is the theory, not a tuned value.
   requires_simulation:
 
 - name: precariousness
@@ -87,6 +93,12 @@ behavior_tests:
   pass_if:
     op: "<"
     value: 0.3
+    provenance:
+      kind: calibration
+      note: >-
+        0.3 starved/fed ratio is a calibration band set so the self-producing loop
+        (≈0.035) passes with wide margin while an externally-maintained mimic (≈9x
+        persistent) fails — calibrated against the two controls, not a literature value.
   requires_simulation: membrane-metabolism-loop
 
 - name: identity-persists-when-fed
@@ -127,6 +139,10 @@ findings:
   kind: structural
   status: confirms
   tier: observation
+  claim_scope: mechanism      # critique #21 — a structural organizational property of the network
+  generality:                 # critique #22 — closure shown structural across the supply_rate sweep
+    axes_tested: [parameter_regime]
+    level: mechanism
   statement: 'The network is operationally closed: it self-produces 5/5 required types (lipid, membrane_lipids,
     nutrient, precursor, volume); only nutrient crosses the boundary. The cell produces its own boundary.
     Interface closure is CLOSED (the ports cover the requirements) and semantic closure is CLOSED (every
@@ -145,7 +161,8 @@ findings:
   status: confirms
   tier: mechanism
   mechanism_origin: emergent
-  statement: The identity is precarious — a process, not a container. Fed, the self-produced 
+  claim_scope: behavioral     # critique #21 — a measured dynamical property (fed vs starved volume)
+  statement: The identity is precarious — a process, not a container. Fed, the self-produced
     boundary grows and is maintained (volume 2.97 → 9.37); starved of nutrient it dissipates (2.97 →
     0.329). It persists only through continuous self-production.
   evidence:
@@ -176,9 +193,10 @@ discovery_implications:
   - "The closure metric is not calibrated: no system that SHOULD fail closure has been run, so its discriminative
     power is unestablished (the reviewers' circularity concern)."
   alternate_hypotheses:
-  - hypothesis: Closure restates how the network was wired (bookkeeping), not an emergent 
+  - hypothesis: Closure restates how the network was wired (bookkeeping), not an emergent
       organizational property.
-    why_plausible: membrane, metabolism and derived variables are explicitly coupled by 
+    hypothesis_id: H-closure-without-viability   # critique #6 — links to the investigation hypothesis
+    why_plausible: membrane, metabolism and derived variables are explicitly coupled by
       construction.
     discriminating_observables:
     - closure_gap_size on an externally-maintained-membrane control (should NOT close)

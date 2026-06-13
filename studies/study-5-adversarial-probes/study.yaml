@@ -41,14 +41,30 @@ behavior_tests:
     An externally-maintained mimic (membrane clamped from outside) persists when
     starved; the metric must flag it as NOT precarious, i.e. reject it.
   measure: {kind: derived_scalar, field: external_maintenance_persistence}
-  pass_if: {op: ">=", value: 3.0}
+  pass_if:
+    op: ">="
+    value: 3.0
+    provenance:
+      kind: calibration
+      note: >-
+        The mimic must be ≥3x more persistent than the self-producing loop when starved
+        to count as "rejected" (not precarious); calibrated against the self-producing-loop
+        positive control, mirroring study-1's precariousness band.
 - name: rejects-broken-closure
   classification: primary
   description: |
     A network missing the membrane producer cannot self-produce its boundary;
     operational closure must leave a non-empty gap, i.e. reject it.
   measure: {kind: derived_scalar, field: broken_network_gap}
-  pass_if: {op: ">", value: 0}
+  pass_if:
+    op: ">"
+    value: 0
+    provenance:
+      kind: theory
+      note: >-
+        Any non-empty closure gap means a required type is not self-produced, so the
+        network is definitionally not operationally closed — the threshold is the
+        autopoietic closure definition, not a tuned value.
 
 falsifiability: |
   The framework would FAIL this adversarial test if the externally-maintained
@@ -97,6 +113,7 @@ discovery_implications:
     remain to be tested."
   alternate_hypotheses:
   - hypothesis: "A cleverly-tuned random cyclic network might still score a closed gap."
+    hypothesis_id: H-closure-without-viability   # critique #6 — closure-as-bookkeeping link
     why_plausible: "closure is a structural bookkeeping check; a hand-crafted cycle could satisfy it without
       biological meaning."
     discriminating_observables: ["operational_closure gap on a randomly-wired network", "precariousness
@@ -131,6 +148,7 @@ findings:
   kind: structural
   status: confirms
   tier: observation
+  claim_scope: behavioral     # critique #21 — measured: the mimic persists when starved (precariousness fails)
   statement: 'The framework REJECTS an externally-maintained mimic: clamped from outside it persists when
     starved (precariousness fails), so the metric does not mistake external upkeep for self-production.'
   evidence:
@@ -141,6 +159,7 @@ findings:
   kind: structural
   status: confirms
   tier: observation
+  claim_scope: mechanism      # critique #21 — structural: missing producer leaves a non-empty closure gap
   statement: "The framework REJECTS a network missing self-production: removing the membrane producer
     leaves a non-empty closure gap (['membrane_lipids']), so a structurally-incomplete network does not
     pass operational closure."
