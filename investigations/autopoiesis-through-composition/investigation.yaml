@@ -27,7 +27,7 @@ executive:
     the boundary toward {nutrients, energy} — operational closure, a whole cell.
 
 studies:
-  - study-1-membrane-metabolism-loop: the minimal self-bounding loop (membrane/metabolism co-construction)
+  - study-1-membrane-metabolism-loop
 
 acceptance_criteria:
   - study: study-1-membrane-metabolism-loop
