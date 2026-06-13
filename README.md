@@ -70,4 +70,15 @@ tests/
 docs/            # the design specs this is grown from (adapters; type-directed composition)
 ```
 
-Run the demo: `python -m pbg_autopoiesis.loop`  ·  Tests: `pytest -q`
+Run the demo: `python -m pbg_autopoiesis.loop`  ·  Tests: `pytest -q`  ·
+Visual gallery: `python -m pbg_autopoiesis.viz` → `figures/index.html`
+
+## This is an investigation
+
+The build-up is structured as a **multipart investigation driven by the biological schema
+framework** — each increment is a *study*, the autopoiesis meter is its *acceptance
+criterion*, precariousness is its *behavior test*, and the figures are its *evidence*. See
+[`docs/investigation.md`](docs/investigation.md). Study 1 (this commit) **passes**: operational
+closure CLOSED, the identity precarious-but-maintained.
+
+![the autopoietic loop closes](figures/05_closure_cycle.png)

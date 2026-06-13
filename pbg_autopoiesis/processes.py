@@ -25,7 +25,10 @@ from process_bigraph import Process
 
 # Conversion scale standing in for 1/N_A: concentration = count / (CONC_SCALE * volume).
 CONC_SCALE = 1.0
-AREA_PER_LIPID = 0.02   # area units contributed by one membrane lipid (one leaflet)
+# Area per membrane lipid (one leaflet). Sized so the emergent volume is O(1-10)
+# and concentrations stay sane — which keeps the bimolecular lipid step in its
+# kinetic (volume-governed) regime rather than saturating the stoichiometric clamp.
+AREA_PER_LIPID = 0.5
 
 
 def concentration(count: float, volume: float) -> float:
