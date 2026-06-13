@@ -82,3 +82,17 @@ criterion*, precariousness is its *behavior test*, and the figures are its *evid
 closure CLOSED, the identity precarious-but-maintained.
 
 ![the autopoietic loop closes](figures/05_closure_cycle.png)
+
+### Wired into the dashboard investigation framework
+
+This repo is a **dashboard workspace** (`workspace.yaml` + `investigations/` + `studies/` +
+the `membrane-metabolism-loop` composite). Study 1's verdict is **computed by the autopoiesis
+meter and written into the study** by `pbg_autopoiesis/spine.py` — the schema framework
+literally driving the spine: the meter produces the measures (closure gap, precariousness
+ratio, fed growth), the study's authored `pass_if` bands judge them, and the framework's own
+`study_verdict.roll_up_verdict` → **passed** and `investigation_status.roll_up_acceptance` →
+**passing** (3/3 criteria) read the result. The six figures are the study's report.
+
+```
+PYTHONPATH=. <pb-venv>/bin/python -m pbg_autopoiesis.spine   # recompute + write the verdict
+```

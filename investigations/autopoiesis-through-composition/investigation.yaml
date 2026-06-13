@@ -1,0 +1,38 @@
+schema_version: 2
+name: autopoiesis-through-composition
+title: "Autopoiesis through composition"
+created: '2026-06-12'
+status: active
+
+question: |
+  Can a precarious, self-bounding identity — a cell that produces its own boundary —
+  be assembled by composing existing parts, and how much of itself does each increment
+  produce? Progress is measured, not asserted: by operational closure (the autopoiesis
+  meter) and by precariousness (does the identity dissipate when self-production stops?).
+
+executive:
+  what_is_this: |
+    A whole-cell model built up as a self-producing network, increment by increment.
+    The biological schema framework DRIVES acceptance: each study's verdict is the
+    autopoiesis meter (operational closure: gap = requires \ provides \ boundary) plus
+    the precariousness behavior test. The membrane — the self-produced boundary that
+    the whole-cell-modeling lineage models as a given — is the part we build.
+  verdict: |
+    Study 1 (the minimal membrane/metabolism loop) PASSES: operational closure CLOSED,
+    the identity precarious-but-maintained.
+  verdict_status: in-progress
+  verdict_detail: |
+    Study 1 is closed modulo nutrient (gap = ∅, boundary = {nutrient}). Later studies
+    fold in real v2ecoli parts to move types from imported → self-produced, shrinking
+    the boundary toward {nutrients, energy} — operational closure, a whole cell.
+
+studies:
+  - study-1-membrane-metabolism-loop: the minimal self-bounding loop (membrane/metabolism co-construction)
+
+acceptance_criteria:
+  - study: study-1-membrane-metabolism-loop
+    behavior: operational-closure
+  - study: study-1-membrane-metabolism-loop
+    behavior: precariousness
+  - study: study-1-membrane-metabolism-loop
+    behavior: identity-persists-when-fed

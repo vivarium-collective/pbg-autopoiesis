@@ -1,0 +1,131 @@
+schema_version: 4
+name: study-1-membrane-metabolism-loop
+title: "Study 1 — the minimal membrane/metabolism loop"
+created: '2026-06-12'
+phase: Evaluate
+status: completed
+design_status: approved
+implementation_status: complete
+simulation_status: ran
+evaluation_status: evaluated
+gate_status: passed
+
+objective: |
+  Assemble the smallest precarious, self-bounding identity by composing a toy metabolism,
+  a membrane that grows from its own lipids (and decays without them), and a boundary whose
+  volume is DERIVED from the membrane — then verify, with the autopoiesis meter, that the
+  network is operationally closed (modulo nutrient) and that the identity is precarious:
+  fed it persists, starved it dissipates.
+
+pipeline_gate:
+  prerequisites: []
+  enables:
+  - study: study-2-real-metabolism
+    condition: tests-passed
+  proceed_condition: |
+    Operational closure CLOSED (gap = ∅, boundary = {nutrient}) AND precariousness holds
+    (the self-produced boundary collapses when nutrient is withdrawn).
+  # gate_evaluator is COMPUTED + written by the autopoiesis meter (pbg_autopoiesis.spine)
+
+  gate_evaluator:
+    result: passed
+    blocked_by: []
+    evaluated_by: code
+    diverges_from_authored: false
+baseline:
+- name: membrane-metabolism-loop
+  composite: pbg_autopoiesis.composites.membrane-metabolism-loop
+  params:
+    supply_rate: 2.0
+
+behavior_tests:
+- name: operational-closure
+  classification: primary
+  description: |
+    The autopoiesis meter: the network's provides cover its requires; the gap
+    (requires \ provides \ boundary) is empty. Only nutrient crosses the boundary —
+    everything else, including the boundary itself, is self-produced.
+  measure:
+    kind: derived_scalar
+    field: closure_gap_size
+  pass_if:
+    op: "<="
+    value: 0
+  requires_simulation:
+
+- name: precariousness
+  classification: primary
+  description: |
+    The identity is a process, not a container: starved of nutrient, the self-produced
+    boundary dissipates. Measured as starved_final_volume / fed_final_volume — small
+    means strongly precarious (the identity depends on continuous self-production).
+  measure:
+    kind: derived_scalar
+    field: precariousness_ratio
+  pass_if:
+    op: "<"
+    value: 0.3
+  requires_simulation: membrane-metabolism-loop
+
+- name: identity-persists-when-fed
+  classification: supporting
+  description: |
+    Fed, the self-produced boundary is maintained or grows through material turnover:
+    fed_final_volume / initial_volume >= 1.
+  measure:
+    kind: derived_scalar
+    field: fed_volume_growth
+  pass_if:
+    op: ">="
+    value: 1.0
+  requires_simulation: membrane-metabolism-loop
+
+# runs + findings + pipeline_gate.gate_evaluator are COMPUTED and written by
+# pbg_autopoiesis.spine.sync() — the schema framework driving the spine.
+runs:
+- name: autopoiesis-meter
+  status: completed
+  composite: membrane-metabolism-loop
+  outcomes:
+    operational-closure:
+      result: PASS
+      observed: 0.0
+    precariousness:
+      result: PASS
+      observed: 0.0351
+    identity-persists-when-fed:
+      result: PASS
+      observed: 3.1497
+findings:
+- id: F-01
+  kind: structural
+  status: confirms
+  statement: 'The network is operationally closed: it self-produces 5/5 required types (lipid, membrane_lipids,
+    nutrient, precursor, volume); only nutrient crosses the boundary. The cell produces its own boundary.'
+  evidence:
+    from_test: operational-closure
+    observed: 0.0
+    units: types in gap
+- id: F-02
+  kind: biological
+  status: confirms
+  statement: The identity is precarious — a process, not a container. Fed, the self-produced 
+    boundary grows and is maintained (volume 2.97 → 9.37); starved of nutrient it dissipates (2.97 →
+    0.329). It persists only through continuous self-production.
+  evidence:
+    from_test: precariousness
+    observed: 0.0351
+    units: starved/fed volume ratio
+visualizations:
+- name: precariousness
+  chart: charts/01_precariousness.png
+- name: dynamics
+  chart: charts/02_dynamics.png
+- name: emergent_boundary
+  chart: charts/03_emergent_boundary.png
+- name: volume_coupling
+  chart: charts/04_volume_coupling.png
+- name: closure_cycle
+  chart: charts/05_closure_cycle.png
+- name: phase_portrait
+  chart: charts/06_phase_portrait.png

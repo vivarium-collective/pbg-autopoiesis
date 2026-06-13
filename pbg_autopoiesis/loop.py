@@ -10,21 +10,11 @@ closes on itself except for the nutrient inflow. Provides:
 """
 from __future__ import annotations
 
-from bigraph_schema import allocate_core
 from process_bigraph import Composite
 
+from .core import build_core as _core
 from .processes import Supply, Metabolism, Membrane, Boundary, membrane_volume
 from .meter import operational_closure, interface_of, report
-
-_PROCS = {"Supply": Supply, "Metabolism": Metabolism,
-          "Membrane": Membrane, "Boundary": Boundary}
-
-
-def _core():
-    core = allocate_core()
-    for name, cls in _PROCS.items():
-        core.register_link(name, cls)   # so 'local:Name' resolves
-    return core
 
 
 def _proc_node(address, config, wires_in, wires_out, interval=1.0):
