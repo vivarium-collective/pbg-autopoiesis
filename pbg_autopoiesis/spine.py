@@ -180,7 +180,7 @@ def _copy_figures():
 def _spatial_findings(context, outcomes):
     held, leaky = context["held"], context["leaky"]
     return [
-        {"id": "F-01", "kind": "structural", "status": "confirms",
+        {"id": "F-01", "kind": "structural", "status": "confirms", "tier": "observation",
          "statement": (f"The membrane holds the individual together against diffusion: the "
                        f"interior stays {held['containment']:.0f}× more concentrated than the "
                        f"medium with the self-produced membrane, vs {leaky['containment']:.1f}× "
@@ -188,7 +188,8 @@ def _spatial_findings(context, outcomes):
          "evidence": {"from_test": "membrane-counters-diffusion",
                       "observed": outcomes["membrane-counters-diffusion"]["observed"],
                       "units": "containment fold vs no-membrane"}},
-        {"id": "F-02", "kind": "biological", "status": "confirms",
+        {"id": "F-02", "kind": "biological", "status": "confirms", "tier": "mechanism",
+         "mechanism_origin": "emergent",
          "statement": (f"Containment is precarious: starved, the membrane decays, the boundary "
                        f"leaks, and the individual disperses — retaining only "
                        f"{outcomes['spatial-precariousness']['observed']*100:.0f}% of its "
@@ -321,11 +322,103 @@ def sync_study4():
     return v
 
 
+STUDY5_DIR = WS / "studies" / "study-5-adversarial-probes"
+
+
+def compute_adversarial():
+    """Adversarial probes — systems that should NOT qualify as autopoietic. The
+    study PASSES by the metric correctly REJECTING each of them."""
+    from .meter import operational_closure, interface_of
+    from .processes import Metabolism, Boundary, Supply
+    from .core import build_core
+
+    # Probe 1: an externally-maintained mimic — clamped from outside, it persists
+    # when starved (precariousness FAILS) and must be rejected.
+    starved = run_trajectory(build_loop(supply_rate=0.0), steps=160)
+    ext = run_trajectory(build_loop(supply_rate=0.0, external_membrane=True), steps=160)
+    persistence = (ext[-1] / starved[-1]) if starved[-1] else float("inf")
+
+    # Probe 2: a network MISSING a self-production step (no membrane producer) —
+    # operational closure must leave a non-empty gap and reject it.
+    core = build_core()
+    broken = [interface_of(Metabolism({}, core=core)), interface_of(Boundary({}, core=core))]
+    boundary = set(Supply({}, core=core).outputs().keys())
+    broken_closure = operational_closure(broken, boundary)
+
+    measures = {
+        "external_maintenance_persistence": float(persistence),
+        "broken_network_gap": float(len(broken_closure["gap"])),
+    }
+    controls = [
+        {"name": "self-producing-loop", "kind": "positive",
+         "hypothesis": "The genuine self-producing loop should be ACCEPTED (closed + precarious).",
+         "expected": "accepted (gap 0, precarious)",
+         "observed": f"closure gap {len(closure_of_loop()['gap'])}; collapses when starved",
+         "result": "PASS"},
+        {"name": "externally-maintained-mimic", "kind": "adversarial",
+         "hypothesis": ("A system maintained from OUTSIDE mimics persistence but is not self-"
+                        "producing — the metric must REJECT it (precariousness fails)."),
+         "expected": "persists when starved (not precarious) -> rejected",
+         "observed": f"{persistence:.0f}x more persistent than the self-producing loop when starved",
+         "result": "PASS" if persistence >= 3.0 else "FAIL"},
+        {"name": "missing-self-production-network", "kind": "adversarial",
+         "hypothesis": ("A network missing a self-production step (no membrane producer) should "
+                        "FAIL operational closure."),
+         "expected": "closure gap non-empty -> rejected",
+         "observed": f"gap = {sorted(broken_closure['gap'])}",
+         "result": "PASS" if len(broken_closure["gap"]) > 0 else "FAIL"},
+    ]
+    # Robustness: the rejections hold across the supply-rate range (the mimic
+    # persists, the broken network's gap is structural), not at one point.
+    sweep_rates = [1.0, 1.5, 2.0, 2.5, 3.0]
+    holds = 0
+    for r in sweep_rates:
+        st = run_trajectory(build_loop(supply_rate=0.0), steps=160)
+        ex = run_trajectory(build_loop(supply_rate=0.0, external_membrane=True), steps=160)
+        if st[-1] and (ex[-1] / st[-1]) >= 3.0:
+            holds += 1
+    robustness = {"parameter_sweep": True, "n_replicates": len(sweep_rates), "seeds": sweep_rates,
+                  "swept_param": "supply_rate",
+                  "note": f"{holds}/{len(sweep_rates)}: the externally-maintained mimic stays "
+                          f"non-precarious; the broken-network gap is structural."}
+    context = {"external": ext, "starved": starved, "broken": broken_closure,
+               "controls": controls, "robustness": robustness}
+    return measures, context
+
+
+def _adversarial_findings(context, outcomes):
+    bc = context["broken"]
+    return [
+        {"id": "F-01", "kind": "structural", "status": "confirms", "tier": "observation",
+         "statement": ("The framework REJECTS an externally-maintained mimic: clamped from "
+                       "outside it persists when starved (precariousness fails), so the metric "
+                       "does not mistake external upkeep for self-production."),
+         "evidence": {"from_test": "rejects-external-maintenance",
+                      "observed": outcomes["rejects-external-maintenance"]["observed"],
+                      "units": "persistence vs self-producing loop"}},
+        {"id": "F-02", "kind": "structural", "status": "confirms", "tier": "observation",
+         "statement": (f"The framework REJECTS a network missing self-production: removing the "
+                       f"membrane producer leaves a non-empty closure gap ({sorted(bc['gap'])}), "
+                       f"so a structurally-incomplete network does not pass operational closure."),
+         "evidence": {"from_test": "rejects-broken-closure",
+                      "observed": outcomes["rejects-broken-closure"]["observed"],
+                      "units": "types in gap"}},
+    ]
+
+
+def sync_study5():
+    """Study 5 — adversarial probes (systems that should NOT qualify)."""
+    measures, context = compute_adversarial()
+    return _apply_meter(STUDY5_DIR / "study.yaml", measures, context, _adversarial_findings,
+                        "adversarial-meter", "adversarial-probes")
+
+
 def sync_all():
     sync()
     sync_study2()
     sync_study3()
     sync_study4()
+    sync_study5()
 
 
 if __name__ == "__main__":

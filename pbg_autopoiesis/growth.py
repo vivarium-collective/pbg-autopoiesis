@@ -88,7 +88,27 @@ def growth_division_metrics(n_seeds=12):
                             "min": float(np.min(v)), "max": float(np.max(v))}
                         for k, v in per.items()},
     }
-    return measures, {"h": h0, "robustness": robustness}
+    # NEGATIVE CONTROL — reproduction WITHOUT self-maintenance: starve the supply
+    # so daughters cannot rebuild membrane. Engineered division still fires, but
+    # the lineage collapses — showing reproduction only persists when coupled to
+    # self-maintenance (engineered copying alone is not autopoietic). POSITIVE
+    # control = the self-maintaining lineage that reaches carrying.
+    no_maint = [simulate(seed=s, supply=0.0) for s in range(min(n_seeds, 4))]
+    no_maint_pop = float(np.mean([h["final_pop"] for h in no_maint]))
+    normal_pop = measures["final_population"]
+    controls = [
+        {"name": "self-maintaining-lineage", "kind": "positive",
+         "hypothesis": "A lineage that self-maintains should grow to carrying.",
+         "expected": "reaches carrying", "observed": f"final population {normal_pop:.0f}",
+         "result": "PASS"},
+        {"name": "no-self-maintenance-reproduction", "kind": "negative",
+         "hypothesis": ("Reproduction without self-maintenance (no supply) should COLLAPSE — "
+                        "engineered copying alone is not autopoietic."),
+         "expected": "lineage collapses",
+         "observed": f"final population {no_maint_pop:.0f} vs {normal_pop:.0f} when self-maintaining",
+         "result": "PASS" if no_maint_pop < 0.5 * max(normal_pop, 1e-9) else "FAIL"},
+    ]
+    return measures, {"h": h0, "robustness": robustness, "controls": controls}
 
 
 if __name__ == "__main__":

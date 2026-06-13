@@ -1,0 +1,153 @@
+schema_version: 3
+name: study-5-adversarial-probes
+title: "Adversarial probes — can the framework be fooled?"
+created: '2026-06-13'
+phase: Evaluate
+status: completed
+kind: adversarial
+objective: |
+  Turn the demonstration into a test: challenge the autopoiesis framework with
+  systems that should NOT qualify, and check that the metric REJECTS them. Two
+  probes — an externally-maintained mimic (persistence supplied from outside, not
+  self-produced) and a network missing a self-production step (no membrane
+  producer). The study passes only if the metric rejects both, showing the
+  criteria discriminate genuine self-production from superficial similarity.
+
+pipeline_gate:
+  prerequisites:
+  - study: study-4-growth-division
+    condition: tests-passed
+  enables: []
+  proceed_condition: |
+    The framework rejects both adversarial probes — the externally-maintained
+    mimic fails precariousness and the incomplete network fails operational
+    closure — so the criteria have demonstrated discriminative power.
+
+  gate_evaluator:
+    result: passed
+    blocked_by: []
+    evaluated_by: code
+    diverges_from_authored: false
+baseline:
+- name: adversarial-probes
+  composite: pbg_autopoiesis.composites.membrane-metabolism-loop
+  params: {supply_rate: 0.0}
+
+behavior_tests:
+- name: rejects-external-maintenance
+  classification: primary
+  description: |
+    An externally-maintained mimic (membrane clamped from outside) persists when
+    starved; the metric must flag it as NOT precarious, i.e. reject it.
+  measure: {kind: derived_scalar, field: external_maintenance_persistence}
+  pass_if: {op: ">=", value: 3.0}
+- name: rejects-broken-closure
+  classification: primary
+  description: |
+    A network missing the membrane producer cannot self-produce its boundary;
+    operational closure must leave a non-empty gap, i.e. reject it.
+  measure: {kind: derived_scalar, field: broken_network_gap}
+  pass_if: {op: ">", value: 0}
+
+falsifiability: |
+  The framework would FAIL this adversarial test if the externally-maintained
+  mimic collapsed like a self-producing loop (precariousness indistinguishable
+  from external upkeep), or if the membrane-less network achieved a closed gap —
+  i.e. if a superficially-similar or externally-sustained system passed.
+
+alternative_hypotheses:
+- claim: "Passing the four constructive studies just shows the criteria were tuned to those models, not
+    that they discriminate."
+  discriminated_by: "the adversarial probes are constructed to satisfy surface features yet are rejected,
+    so the criteria track organization, not the specific models."
+  status: excluded
+
+discovery_implications:
+  resolved_uncertainties:
+  - "The precariousness and closure criteria reject externally-maintained and structurally-incomplete
+    systems — they have discriminative power, not just confirmatory fit."
+  remaining_uncertainties:
+  - "Only two adversarial archetypes are probed; parasitic / partially-dependent and random-cyclic networks
+    remain to be tested."
+  alternate_hypotheses:
+  - hypothesis: "A cleverly-tuned random cyclic network might still score a closed gap."
+    why_plausible: "closure is a structural bookkeeping check; a hand-crafted cycle could satisfy it without
+      biological meaning."
+    discriminating_observables: ["operational_closure gap on a randomly-wired network", "precariousness
+        of a parasitic agent that exploits a host"]
+  followup_study_proposals:
+  - id: parasitic-dependent-probe
+    title: "Parasitic / partially-dependent system"
+    motivation: "Blur self-production vs dependence (parasites, endosymbionts, reduced genomes) and check
+      where the criteria draw the line."
+  - id: random-cyclic-network-probe
+    title: "Random cyclic network"
+    motivation: "Test whether a meaningless cyclic network can be made to score a closed gap (would expose
+      closure as mere bookkeeping)."
+
+runs:
+- name: adversarial-meter
+  status: completed
+  composite: adversarial-probes
+  outcomes:
+    rejects-external-maintenance:
+      result: PASS
+      observed: 8.9022
+    rejects-broken-closure:
+      result: PASS
+      observed: 1.0
+findings:
+- id: F-01
+  kind: structural
+  status: confirms
+  tier: observation
+  statement: 'The framework REJECTS an externally-maintained mimic: clamped from outside it persists when
+    starved (precariousness fails), so the metric does not mistake external upkeep for self-production.'
+  evidence:
+    from_test: rejects-external-maintenance
+    observed: 8.9022
+    units: persistence vs self-producing loop
+- id: F-02
+  kind: structural
+  status: confirms
+  tier: observation
+  statement: "The framework REJECTS a network missing self-production: removing the membrane producer
+    leaves a non-empty closure gap (['membrane_lipids']), so a structurally-incomplete network does not
+    pass operational closure."
+  evidence:
+    from_test: rejects-broken-closure
+    observed: 1.0
+    units: types in gap
+visualizations: []
+robustness:
+  parameter_sweep: true
+  n_replicates: 5
+  seeds:
+  - 1.0
+  - 1.5
+  - 2.0
+  - 2.5
+  - 3.0
+  swept_param: supply_rate
+  note: '5/5: the externally-maintained mimic stays non-precarious; the broken-network gap is structural.'
+controls:
+- name: self-producing-loop
+  kind: positive
+  hypothesis: The genuine self-producing loop should be ACCEPTED (closed + precarious).
+  expected: accepted (gap 0, precarious)
+  observed: closure gap 0; collapses when starved
+  result: PASS
+- name: externally-maintained-mimic
+  kind: adversarial
+  hypothesis: A system maintained from OUTSIDE mimics persistence but is not self-producing — the 
+    metric must REJECT it (precariousness fails).
+  expected: persists when starved (not precarious) -> rejected
+  observed: 9x more persistent than the self-producing loop when starved
+  result: PASS
+- name: missing-self-production-network
+  kind: adversarial
+  hypothesis: A network missing a self-production step (no membrane producer) should FAIL 
+    operational closure.
+  expected: closure gap non-empty -> rejected
+  observed: gap = ['membrane_lipids']
+  result: PASS

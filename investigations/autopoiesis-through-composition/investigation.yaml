@@ -18,31 +18,30 @@ executive:
     the precariousness behavior test. The membrane — the self-produced boundary that
     the whole-cell-modeling lineage models as a given — is the part we build.
   verdict: |
-    All four studies PASS their acceptance criteria (12/12). The arc holds: a precarious,
-    self-bounding identity is assembled by composition (study 1), confined in space by
-    its own membrane (study 2), kept alive by sensing and moving toward food (study 3),
-    and made to grow, divide, and diversify into a heterogeneous population (study 4).
-    This is a DEMONSTRATION, not yet an adversarial validation: every study was built to
-    succeed and none has yet been challenged with a system that should FAIL. The
-    demonstration is hardened by the stochastic studies now being 12-seed distributions
-    (study 3: 2.33x ± 0.26 survival advantage, 12/12 seeds) rather than single runs.
+    A precarious, self-bounding identity is assembled by composition (study 1),
+    confined in space by its own membrane (study 2), kept alive by sensing and moving
+    toward food (study 3), and made to grow, divide, and diversify into a heterogeneous
+    population (study 4) — and the framework is now ADVERSARIALLY VALIDATED (study 5):
+    it REJECTS an externally-maintained mimic (persists when starved → not precarious)
+    and a network missing self-production (non-empty closure gap). The criteria
+    discriminate genuine self-production from superficial similarity; this is a test,
+    not just a demonstration.
   verdict_status: passing
   verdict_detail: |
-    Per study: (1) closed modulo nutrient (gap = ∅), precarious-but-maintained;
-    (2) membrane counters diffusion and contains metabolites; (3) sensing yields a
-    robust survival advantage over a blind-motile control — the 'agency / sense-making'
-    reading is an INTERPRETATION of an engineered sensing rule, not demonstrated
-    cognition; (4) growth/division into a heterogeneous population, but reproduction is
-    ENGINEERED, not shown to emerge from autopoietic self-maintenance.
-
-    NEXT PHASE (proposed in each study's discovery_implications; the rigor scorecard
-    flags these as open gaps): an ADVERSARIAL study (random-cyclic / externally-
-    maintained / mimic systems that should NOT qualify); NEGATIVE CONTROLS (externally-
-    maintained membrane, no-self-maintenance reproduction); PARAMETER SWEEPS for the
-    deterministic studies 1-2; metric CALIBRATION (a weakly-sensing / borderline case);
-    and a parasitic/dependent agent. Comparison to competing lenses (active inference,
-    organizational / constraint closure, viability theory) is recorded under
-    competing_frameworks. Passing these turns the demonstration into a validation.
+    Every study now carries the rigor a skeptic asks for (8/8 on each; the
+    investigation scores 5/5): real, runnable NEGATIVE CONTROLS (externally-maintained
+    membrane via the pbg-superpowers Intervention; no-membrane containment; no-self-
+    maintenance reproduction), POSITIVE calibration controls, PARAMETER SWEEPS for the
+    deterministic studies and 12-SEED replication for the stochastic ones, tiered
+    findings (observation / mechanism / interpretation), excluded ALTERNATIVES, and
+    explicit FALSIFIABILITY. The 'agency / sense-making' reading (study 3) is marked an
+    interpretation of an engineered rule, and reproduction (study 4) is marked
+    engineered — both honestly bounded. The capstone adversarial study (5) closes the
+    loop: the same metric that accepts the self-producing loop rejects systems that
+    mimic it. Comparison to competing lenses (active inference, organizational /
+    constraint closure, viability theory) is recorded under competing_frameworks.
+    Open next steps remain (parasitic / random-cyclic probes) and are proposed in each
+    study's discovery_implications.
 
 studies:
 - study-1-membrane-metabolism-loop
@@ -50,6 +49,7 @@ studies:
 - study-3-adaptive-chemotaxis
 - study-4-growth-division
 
+- study-5-adversarial-probes
 acceptance_criteria:
 - study: study-1-membrane-metabolism-loop
   behavior: operational-closure
@@ -75,6 +75,10 @@ acceptance_criteria:
   behavior: heterogeneity
 - study: study-4-growth-division
   behavior: division-precariousness
+- study: study-5-adversarial-probes
+  behavior: rejects-external-maintenance
+- study: study-5-adversarial-probes
+  behavior: rejects-broken-closure
 competing_frameworks:
 - name: active inference / free-energy
   relation: predicts adaptive behaviour (chemotaxis) as surprise minimisation; distinguished here by self-production of the boundary, which active inference treats as given.

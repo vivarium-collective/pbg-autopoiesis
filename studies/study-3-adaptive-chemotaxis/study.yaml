@@ -129,6 +129,12 @@ visualizations:
 - name: landscape
   chart: charts/s3_03_landscape.png
 controls:
+- name: chemotactic-agent
+  kind: positive
+  hypothesis: A sensing agent in a gradient should survive (the qualifying, autopoietic-agency end).
+  expected: high survival
+  observed: ~81% survival over 12 seeds
+  result: PASS
 - name: blind-motile-agent
   kind: negative
   hypothesis: A motile-but-non-sensing agent (random walk, no gradient sensing) should survive markedly worse if sensing — not mere movement — drives survival.

@@ -63,11 +63,35 @@ def containment_metrics():
     held = simulate(fed=True, membrane=True)
     leaky = simulate(fed=True, membrane=False)
     starved = simulate(fed=False, membrane=True)
-    return {
+    measures = {
         "containment_ratio": held["containment"],                       # held together?
         "membrane_effect": held["containment"] / max(leaky["containment"], 1e-9),  # membrane's role
         "precariousness_collapse": starved["containment"] / max(held["containment"], 1e-9),  # disperses when starved?
-    }, {"held": held, "leaky": leaky, "starved": starved}
+    }
+    # Controls: no-membrane is the discriminating NEGATIVE control (should fail to
+    # contain); membrane-on is the POSITIVE end — together they calibrate the metric.
+    controls = [
+        {"name": "self-produced-membrane", "kind": "positive",
+         "hypothesis": "A self-produced membrane should contain the metabolites against diffusion.",
+         "expected": "high containment", "observed": f"{held['containment']:.1f}x concentrated",
+         "result": "PASS"},
+        {"name": "no-membrane", "kind": "negative",
+         "hypothesis": "Metabolism WITHOUT a membrane should NOT contain — the interior disperses.",
+         "expected": "containment fails (~1x)",
+         "observed": f"{leaky['containment']:.1f}x vs {held['containment']:.1f}x with membrane",
+         "result": "PASS" if held["containment"] > 2 * max(leaky["containment"], 1e-9) else "FAIL"},
+    ]
+    # Parameter-sweep robustness (deterministic PDE): vary diffusion D; the
+    # membrane should contain better than no-membrane across the range.
+    sweep_D = [0.15, 0.20, 0.25, 0.30, 0.35]
+    wins = sum(1 for d in sweep_D
+               if simulate(fed=True, membrane=True, D=d)["containment"]
+               > simulate(fed=True, membrane=False, D=d)["containment"])
+    robustness = {"parameter_sweep": True, "n_replicates": len(sweep_D), "seeds": sweep_D,
+                  "swept_param": "D",
+                  "note": f"{wins}/{len(sweep_D)} diffusion settings: membrane contains better than no-membrane."}
+    return measures, {"held": held, "leaky": leaky, "starved": starved,
+                      "controls": controls, "robustness": robustness}
 
 
 if __name__ == "__main__":

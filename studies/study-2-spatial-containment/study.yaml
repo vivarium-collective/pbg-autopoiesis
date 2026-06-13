@@ -100,6 +100,7 @@ findings:
 - id: F-01
   kind: structural
   status: confirms
+  tier: observation
   statement: 'The membrane holds the individual together against diffusion: the interior stays 60× more concentrated than the medium with the self-produced membrane, vs 4.4× with metabolism alone. The membrane — not metabolism — is what contains.'
   evidence:
     from_test: membrane-counters-diffusion
@@ -108,12 +109,13 @@ findings:
 - id: F-02
   kind: biological
   status: confirms
+  tier: mechanism
+  mechanism_origin: emergent
   statement: 'Containment is precarious: starved, the membrane decays, the boundary leaks, and the individual disperses — retaining only 4% of its containment. The individual is held together only as a process.'
   evidence:
     from_test: spatial-precariousness
     observed: 0.0434
     units: starved/held containment fraction
-
 visualizations:
 - name: containment_profiles
   chart: charts/s2_01_profiles.png
@@ -134,3 +136,32 @@ discovery_implications:
   - id: declare-no-membrane-control
     title: Record the no-membrane case as a negative control
     motivation: The membrane=False run should FAIL containment; declaring it makes the discriminative comparison explicit (review C2/C9).
+robustness:
+  parameter_sweep: true
+  n_replicates: 5
+  seeds:
+  - 0.15
+  - 0.2
+  - 0.25
+  - 0.3
+  - 0.35
+  swept_param: D
+  note: '5/5 diffusion settings: membrane contains better than no-membrane.'
+controls:
+- name: self-produced-membrane
+  kind: positive
+  hypothesis: A self-produced membrane should contain the metabolites against diffusion.
+  expected: high containment
+  observed: 60.4x concentrated
+  result: PASS
+- name: no-membrane
+  kind: negative
+  hypothesis: Metabolism WITHOUT a membrane should NOT contain — the interior disperses.
+  expected: containment fails (~1x)
+  observed: 4.4x vs 60.4x with membrane
+  result: PASS
+falsifiability: The containment claim would be unsupported if the no-membrane control contained the metabolites as well as the membrane case — i.e. if diffusion physics alone (no self-produced boundary) sufficed.
+alternative_hypotheses:
+- claim: The interior stays concentrated because of the geometry / diffusion setup, not the self-produced membrane.
+  discriminated_by: the no-membrane negative control disperses (containment ~1x) under the same geometry, isolating the membrane's role.
+  status: excluded

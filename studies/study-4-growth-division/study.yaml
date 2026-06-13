@@ -171,3 +171,21 @@ discovery_implications:
   - id: engineered-vs-autopoietic-reproduction
     title: Engineered vs autopoietic reproduction (negative control)
     motivation: Show the metric must couple reproduction to self-maintenance — copying without metabolism should not qualify (review C7).
+controls:
+- name: self-maintaining-lineage
+  kind: positive
+  hypothesis: A lineage that self-maintains should grow to carrying.
+  expected: reaches carrying
+  observed: final population 300
+  result: PASS
+- name: no-self-maintenance-reproduction
+  kind: negative
+  hypothesis: Reproduction without self-maintenance (no supply) should COLLAPSE — engineered copying alone is not autopoietic.
+  expected: lineage collapses
+  observed: final population 1 vs 300 when self-maintaining
+  result: PASS
+falsifiability: The 'reproduction extends autopoiesis' reading would be unsupported if the no-self-maintenance control still reached carrying — i.e. if engineered division persisted without metabolism.
+alternative_hypotheses:
+- claim: The population growth demonstrates engineered copying, not autopoietic self-reproduction.
+  discriminated_by: the no-self-maintenance negative control (supply=0) collapses despite division firing, so persistence requires self-maintenance.
+  status: excluded
