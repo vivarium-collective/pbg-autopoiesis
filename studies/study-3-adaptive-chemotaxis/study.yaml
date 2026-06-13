@@ -39,7 +39,7 @@ pipeline_gate:
     diverges_from_authored: false
 baseline:
 - name: chemotactic-agent
-  composite: pbg_autopoiesis.composites.membrane-metabolism-loop
+  composite: pbg_autopoiesis.composites.adaptive-chemotaxis
   params:
     supply_rate: 2.0
 

@@ -18,13 +18,21 @@ executive:
     the precariousness behavior test. The membrane — the self-produced boundary that
     the whole-cell-modeling lineage models as a given — is the part we build.
   verdict: |
-    Study 1 (the minimal membrane/metabolism loop) PASSES: operational closure CLOSED,
-    the identity precarious-but-maintained.
-  verdict_status: in-progress
+    All four studies PASS (12/12 acceptance criteria). The arc holds: a precarious,
+    self-bounding identity is assembled by composition (study 1), confined in space by
+    its own membrane (study 2), kept alive by sensing and moving toward food (study 3),
+    and made to grow, divide, and diversify into a heterogeneous population under
+    selection (study 4).
+  verdict_status: passing
   verdict_detail: |
-    Study 1 is closed modulo nutrient (gap = ∅, boundary = {nutrient}). Later studies
-    fold in real v2ecoli parts to move types from imported → self-produced, shrinking
-    the boundary toward {nutrients, energy} — operational closure, a whole cell.
+    Study 1 is closed modulo nutrient (gap = ∅, boundary = {nutrient}): operational
+    closure CLOSED, identity precarious-but-maintained. Study 2 shows the membrane
+    counters diffusion and contains the metabolites (spatial precariousness holds).
+    Study 3 demonstrates agency — chemotactic sense-making yields a survival advantage
+    over a non-sensing control. Study 4 reproduces the loop with growth/division into a
+    heterogeneous population, the division itself precarious. Later increments fold in
+    real v2ecoli parts to move types from imported → self-produced, shrinking the
+    boundary toward {nutrients, energy} — operational closure, a whole cell.
 
 studies:
   - study-1-membrane-metabolism-loop

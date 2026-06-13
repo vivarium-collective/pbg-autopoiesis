@@ -37,7 +37,7 @@ pipeline_gate:
     diverges_from_authored: false
 baseline:
 - name: growing-population
-  composite: pbg_autopoiesis.composites.membrane-metabolism-loop
+  composite: pbg_autopoiesis.composites.growth-division
   params:
     supply_rate: 2.0
 
