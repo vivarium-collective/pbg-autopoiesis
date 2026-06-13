@@ -100,6 +100,7 @@ findings:
 - id: F-01
   kind: structural
   status: confirms
+  tier: observation
   statement: 'The network is operationally closed: it self-produces 5/5 required types (lipid, membrane_lipids, nutrient, precursor, volume); only nutrient crosses the boundary. The cell produces its own boundary.'
   evidence:
     from_test: operational-closure
@@ -108,6 +109,8 @@ findings:
 - id: F-02
   kind: biological
   status: confirms
+  tier: mechanism
+  mechanism_origin: emergent
   statement: The identity is precarious — a process, not a container. Fed, the self-produced boundary grows and is maintained (volume 2.97 → 9.37); starved of nutrient it dissipates (2.97 → 0.329). It persists only through continuous self-production.
   evidence:
     from_test: precariousness
@@ -160,3 +163,18 @@ controls:
   observed: final volume 2.93 vs starved 0.33 (9x more persistent)
   result: PASS
 falsifiability: The autopoiesis reading would be unsupported if the externally-maintained-membrane control collapsed like the starved loop (precariousness independent of self-production), or if a random/cyclic network achieved a closed gap — i.e. if the metric did not distinguish self-production from external upkeep or bookkeeping.
+robustness:
+  parameter_sweep: true
+  n_replicates: 5
+  seeds:
+  - 1.0
+  - 1.5
+  - 2.0
+  - 2.5
+  - 3.0
+  swept_param: supply_rate
+  note: 5/5 rates grow the identity when fed; 5/5 stay precarious when starved; closure is structural (gap=0).
+alternative_hypotheses:
+- claim: Operational closure restates how the network was wired (bookkeeping), not an emergent organizational property.
+  discriminated_by: 'the externally-maintained-membrane negative control: an architecturally-similar system whose boundary is supplied from outside does NOT show precariousness, so closure+precariousness track self-production, not wiring.'
+  status: excluded

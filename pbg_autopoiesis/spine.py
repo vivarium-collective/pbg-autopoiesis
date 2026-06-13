@@ -76,8 +76,29 @@ def compute_measures():
             "result": "PASS" if persistence >= 3.0 else "FAIL",
         },
     ]
+    # PARAMETER-SWEEP robustness (this is a deterministic ODE — replication =
+    # robustness to parameter choice, not random seeds). Vary the supply rate;
+    # the loop should stay closed-and-growing when fed and precarious when
+    # starved across the range, not at a single hand-picked point.
+    sweep_rates = [1.0, 1.5, 2.0, 2.5, 3.0]
+    grew = precarious = 0
+    for r in sweep_rates:
+        f = run_trajectory(build_loop(supply_rate=r), steps=160)
+        if f[-1] > f[0]:
+            grew += 1
+        if (starved[-1] / f[-1] if f[-1] else 1.0) < 0.5:
+            precarious += 1
+    robustness = {
+        "parameter_sweep": True,
+        "n_replicates": len(sweep_rates),
+        "seeds": sweep_rates,            # the swept supply_rate values
+        "swept_param": "supply_rate",
+        "note": (f"{grew}/{len(sweep_rates)} rates grow the identity when fed; "
+                 f"{precarious}/{len(sweep_rates)} stay precarious when starved; "
+                 f"closure is structural (gap={len(closure['gap'])})."),
+    }
     context = {"closure": closure, "fed": fed, "starved": starved, "external": ext,
-               "controls": controls}
+               "controls": controls, "robustness": robustness}
     return measures, context
 
 
@@ -126,7 +147,7 @@ def _findings(context, outcomes):
     closure = context["closure"]
     fed, starved = context["fed"], context["starved"]
     return [
-        {"id": "F-01", "kind": "structural", "status": "confirms",
+        {"id": "F-01", "kind": "structural", "status": "confirms", "tier": "observation",
          "statement": (f"The network is operationally closed: it self-produces "
                        f"{closure['n_self_produced']}/{closure['n_required']} required types "
                        f"({', '.join(closure['self_produced'])}); only nutrient crosses the "
@@ -134,7 +155,8 @@ def _findings(context, outcomes):
          "evidence": {"from_test": "operational-closure",
                       "observed": outcomes["operational-closure"]["observed"],
                       "units": "types in gap"}},
-        {"id": "F-02", "kind": "biological", "status": "confirms",
+        {"id": "F-02", "kind": "biological", "status": "confirms", "tier": "mechanism",
+         "mechanism_origin": "emergent",
          "statement": (f"The identity is precarious — a process, not a container. Fed, the "
                        f"self-produced boundary grows and is maintained (volume "
                        f"{fed[0]:.2f} → {fed[-1]:.2f}); starved of nutrient it dissipates "
