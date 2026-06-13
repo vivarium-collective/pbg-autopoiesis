@@ -35,33 +35,40 @@ executive:
     boundary toward {nutrients, energy} — operational closure, a whole cell.
 
 studies:
-  - study-1-membrane-metabolism-loop
-  - study-2-spatial-containment
-  - study-3-adaptive-chemotaxis
-  - study-4-growth-division
+- study-1-membrane-metabolism-loop
+- study-2-spatial-containment
+- study-3-adaptive-chemotaxis
+- study-4-growth-division
 
 acceptance_criteria:
-  - study: study-1-membrane-metabolism-loop
-    behavior: operational-closure
-  - study: study-1-membrane-metabolism-loop
-    behavior: precariousness
-  - study: study-1-membrane-metabolism-loop
-    behavior: identity-persists-when-fed
-  - study: study-2-spatial-containment
-    behavior: containment
-  - study: study-2-spatial-containment
-    behavior: membrane-counters-diffusion
-  - study: study-2-spatial-containment
-    behavior: spatial-precariousness
-  - study: study-3-adaptive-chemotaxis
-    behavior: chemotaxis-survival
-  - study: study-3-adaptive-chemotaxis
-    behavior: agency-advantage
-  - study: study-3-adaptive-chemotaxis
-    behavior: sense-making
-  - study: study-4-growth-division
-    behavior: reproduction
-  - study: study-4-growth-division
-    behavior: heterogeneity
-  - study: study-4-growth-division
-    behavior: division-precariousness
+- study: study-1-membrane-metabolism-loop
+  behavior: operational-closure
+- study: study-1-membrane-metabolism-loop
+  behavior: precariousness
+- study: study-1-membrane-metabolism-loop
+  behavior: identity-persists-when-fed
+- study: study-2-spatial-containment
+  behavior: containment
+- study: study-2-spatial-containment
+  behavior: membrane-counters-diffusion
+- study: study-2-spatial-containment
+  behavior: spatial-precariousness
+- study: study-3-adaptive-chemotaxis
+  behavior: chemotaxis-survival
+- study: study-3-adaptive-chemotaxis
+  behavior: agency-advantage
+- study: study-3-adaptive-chemotaxis
+  behavior: sense-making
+- study: study-4-growth-division
+  behavior: reproduction
+- study: study-4-growth-division
+  behavior: heterogeneity
+- study: study-4-growth-division
+  behavior: division-precariousness
+competing_frameworks:
+- name: active inference / free-energy
+  relation: predicts adaptive behaviour (chemotaxis) as surprise minimisation; distinguished here by self-production of the boundary, which active inference treats as given.
+- name: organizational / constraint closure (Moreno-Mossio, Montevil)
+  relation: closely related — arguably the same claim; our operational-closure gap metric is one discrete operationalisation of closure-of-constraints.
+- name: viability theory (Aubin)
+  relation: frames persistence as staying inside a viability kernel; precariousness is the dynamical-systems echo of that condition.

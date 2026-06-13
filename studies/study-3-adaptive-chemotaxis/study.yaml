@@ -141,3 +141,4 @@ alternative_hypotheses:
   discriminated_by: the blind-motile-agent control (moves by random walk but does not sense the gradient) survives far worse, so movement alone does not account for the gain.
   status: excluded
 falsifiability: The survival advantage — and the agency / sense-making reading — would be unsupported if the motile-but-blind control matched chemotactic survival, i.e. if the gain were due to movement alone rather than gradient sensing.
+limitations: Demonstrates that gradient sensing improves survival and excludes the 'mere movement' explanation (blind-motile control); it does NOT establish cognition or strong agency beyond adaptive behaviour, the sensing->tumble response is an engineered rule (not emergent), and the result rests on a single run (no seed replication).
