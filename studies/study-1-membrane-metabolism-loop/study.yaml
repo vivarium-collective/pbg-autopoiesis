@@ -100,8 +100,7 @@ findings:
 - id: F-01
   kind: structural
   status: confirms
-  statement: 'The network is operationally closed: it self-produces 5/5 required types (lipid, membrane_lipids,
-    nutrient, precursor, volume); only nutrient crosses the boundary. The cell produces its own boundary.'
+  statement: 'The network is operationally closed: it self-produces 5/5 required types (lipid, membrane_lipids, nutrient, precursor, volume); only nutrient crosses the boundary. The cell produces its own boundary.'
   evidence:
     from_test: operational-closure
     observed: 0.0
@@ -109,9 +108,7 @@ findings:
 - id: F-02
   kind: biological
   status: confirms
-  statement: The identity is precarious — a process, not a container. Fed, the self-produced 
-    boundary grows and is maintained (volume 2.97 → 9.37); starved of nutrient it dissipates (2.97 →
-    0.329). It persists only through continuous self-production.
+  statement: The identity is precarious — a process, not a container. Fed, the self-produced boundary grows and is maintained (volume 2.97 → 9.37); starved of nutrient it dissipates (2.97 → 0.329). It persists only through continuous self-production.
   evidence:
     from_test: precariousness
     observed: 0.0351
@@ -129,3 +126,23 @@ visualizations:
   chart: charts/05_closure_cycle.png
 - name: phase_portrait
   chart: charts/06_phase_portrait.png
+discovery_implications:
+  resolved_uncertainties:
+  - 'Operational closure is CLOSED modulo nutrient (gap = requires \ provides \ boundary = empty): the boundary and metabolism are self-produced.'
+  - 'The identity is precarious-but-maintained: volume collapses when self-production stops (fed vs starved).'
+  remaining_uncertainties:
+  - Closure is shown at a single deterministic parameter point — robustness to supply_rate / decay is not yet demonstrated (a parameter sweep, not seeds, since the loop is an ODE).
+  - "The closure metric is not calibrated: no system that SHOULD fail closure has been run, so its discriminative power is unestablished (the reviewers' circularity concern)."
+  alternate_hypotheses:
+  - hypothesis: Closure restates how the network was wired (bookkeeping), not an emergent organizational property.
+    why_plausible: membrane, metabolism and derived variables are explicitly coupled by construction.
+    discriminating_observables:
+    - closure_gap_size on an externally-maintained-membrane control (should NOT close)
+    - closure_gap_size on a random-cyclic network (should NOT close)
+  followup_study_proposals:
+  - id: closure-parameter-sweep
+    title: Closure robustness sweep
+    motivation: Show closure holds across a supply_rate/decay range, not at one point (review C4 for deterministic models).
+  - id: external-membrane-negative-control
+    title: Externally-maintained membrane (should FAIL)
+    motivation: If the membrane is supplied externally rather than self-produced, precariousness and closure should FAIL — calibrating the metric and showing discriminative power (review C1/C2/C9).

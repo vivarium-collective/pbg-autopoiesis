@@ -101,9 +101,7 @@ findings:
   kind: biological
   status: confirms
   tier: observation
-  statement: 'The precarious identity is inherited: one founder grows and divides into a population of
-    300, and noisy partitioning + heritable mutation diversify the lineages (trait spread 0.11). One individual
-    becomes a population of non-identical individuals.'
+  statement: 'The precarious identity is inherited: one founder grows and divides into a population of 300, and noisy partitioning + heritable mutation diversify the lineages (trait spread 0.11). One individual becomes a population of non-identical individuals.'
   evidence:
     from_test: heterogeneity
     observed: 0.1142
@@ -112,8 +110,7 @@ findings:
   kind: biological
   status: confirms
   tier: mechanism
-  statement: 'Reproduction is precarious: 10% of daughters inherit too little membrane to maintain themselves
-    and dissolve. Division has a viability cost — the same self-maintenance, now across generations.'
+  statement: 'Reproduction is precarious: 10% of daughters inherit too little membrane to maintain themselves and dissolve. Division has a viability cost — the same self-maintenance, now across generations.'
   evidence:
     from_test: division-precariousness
     observed: 0.0956
@@ -157,3 +154,20 @@ robustness:
       std: 0.007014998402417289
       min: 0.08278976417461113
       max: 0.11004056795131846
+discovery_implications:
+  resolved_uncertainties:
+  - One founder grows and divides into a heterogeneous population (robust across 12 seeds; reaches carrying every seed).
+  - 'Division is precarious: daughters that inherit too little membrane dissolve.'
+  remaining_uncertainties:
+  - Reproduction is ENGINEERED — explicit division, inheritance and partitioning rules — not shown to EMERGE from autopoietic self-maintenance (review C7).
+  - No control distinguishing engineered copying from autopoietic self-reproduction.
+  alternate_hypotheses:
+  - hypothesis: The population growth demonstrates engineered copying, not autopoietic self-reproduction.
+    why_plausible: the split/inherit/partition rules are coded, not derived from the membrane/metabolism loop.
+    discriminating_observables:
+    - "a no-self-maintenance reproduction control: copies that do not metabolise should still 'divide' but not persist"
+    - coupling of division rate to self-production rate
+  followup_study_proposals:
+  - id: engineered-vs-autopoietic-reproduction
+    title: Engineered vs autopoietic reproduction (negative control)
+    motivation: Show the metric must couple reproduction to self-maintenance — copying without metabolism should not qualify (review C7).

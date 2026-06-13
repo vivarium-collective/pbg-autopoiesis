@@ -100,9 +100,7 @@ findings:
 - id: F-01
   kind: structural
   status: confirms
-  statement: 'The membrane holds the individual together against diffusion: the interior stays 60× more
-    concentrated than the medium with the self-produced membrane, vs 4.4× with metabolism alone. The membrane
-    — not metabolism — is what contains.'
+  statement: 'The membrane holds the individual together against diffusion: the interior stays 60× more concentrated than the medium with the self-produced membrane, vs 4.4× with metabolism alone. The membrane — not metabolism — is what contains.'
   evidence:
     from_test: membrane-counters-diffusion
     observed: 13.8767
@@ -110,8 +108,7 @@ findings:
 - id: F-02
   kind: biological
   status: confirms
-  statement: 'Containment is precarious: starved, the membrane decays, the boundary leaks, and the individual
-    disperses — retaining only 4% of its containment. The individual is held together only as a process.'
+  statement: 'Containment is precarious: starved, the membrane decays, the boundary leaks, and the individual disperses — retaining only 4% of its containment. The individual is held together only as a process.'
   evidence:
     from_test: spatial-precariousness
     observed: 0.0434
@@ -124,3 +121,16 @@ visualizations:
   chart: charts/s2_02_kymograph.png
 - name: containment_over_time
   chart: charts/s2_03_containment.png
+discovery_implications:
+  resolved_uncertainties:
+  - The self-produced membrane counters diffusion and contains the metabolites; spatial precariousness holds.
+  remaining_uncertainties:
+  - A single deterministic PDE configuration — no parameter sweep over diffusion D / permeability k_perm.
+  - The no-membrane comparison exists in code (membrane=False) but is not recorded as a declared negative control.
+  followup_study_proposals:
+  - id: diffusion-parameter-sweep
+    title: Containment robustness sweep (D, k_perm)
+    motivation: Show containment is robust across diffusion/permeability, not a single-configuration artifact (review C4).
+  - id: declare-no-membrane-control
+    title: Record the no-membrane case as a negative control
+    motivation: The membrane=False run should FAIL containment; declaring it makes the discriminative comparison explicit (review C2/C9).

@@ -106,9 +106,7 @@ findings:
   status: confirms
   tier: interpretation
   mechanism_origin: engineered
-  statement: 'Agency in service of survival: chemotactic agents climb the gradient, find food, and survive
-    (79%), while blind agents random-walk and dissolve (only 35% survive) — a 2.3× survival advantage
-    (mean ± 0.26 across 12 seeds; 12/12 favour sensing). Without sensing, the agent cannot maintain viability.'
+  statement: 'Agency in service of survival: chemotactic agents climb the gradient, find food, and survive (79%), while blind agents random-walk and dissolve (only 35% survive) — a 2.3× survival advantage (mean ± 0.26 across 12 seeds; 12/12 favour sensing). Without sensing, the agent cannot maintain viability.'
   evidence:
     from_test: agency-advantage
     observed: 2.326
@@ -118,10 +116,7 @@ findings:
   status: confirms
   tier: interpretation
   mechanism_origin: engineered
-  statement: "Sense-making: the nutrient gradient is meaningful from the perspective of the precarious
-    identity — chemotactic agents experience 1.39× more food than blind ones. Value (food = viable) is
-    grounded in the cell's own viability, not assigned from outside. (Interpretation: 'sense-making' is
-    the autopoietic reading of an engineered sensing→tumble response, not a claim of cognition.)"
+  statement: "Sense-making: the nutrient gradient is meaningful from the perspective of the precarious identity — chemotactic agents experience 1.39× more food than blind ones. Value (food = viable) is grounded in the cell's own viability, not assigned from outside. (Interpretation: 'sense-making' is the autopoietic reading of an engineered sensing→tumble response, not a claim of cognition.)"
   evidence:
     from_test: sense-making
     observed: 1.3939
@@ -136,23 +131,16 @@ visualizations:
 controls:
 - name: blind-motile-agent
   kind: negative
-  hypothesis: A motile-but-non-sensing agent (random walk, no gradient sensing) should survive 
-    markedly worse if sensing — not mere movement — drives survival.
+  hypothesis: A motile-but-non-sensing agent (random walk, no gradient sensing) should survive markedly worse if sensing — not mere movement — drives survival.
   expected: lower survival than chemotactic
   observed: 35% vs 79% survival (chemotactic 2.25x)
   result: PASS
 alternative_hypotheses:
 - claim: The survival gain is plain movement toward resources, not gradient sensing / sense-making.
-  discriminated_by: the blind-motile-agent control (moves by random walk but does not sense the 
-    gradient) survives far worse, so movement alone does not account for the gain.
+  discriminated_by: the blind-motile-agent control (moves by random walk but does not sense the gradient) survives far worse, so movement alone does not account for the gain.
   status: excluded
-falsifiability: The survival advantage — and the agency / sense-making reading — would be 
-  unsupported if the motile-but-blind control matched chemotactic survival, i.e. if the gain were 
-  due to movement alone rather than gradient sensing.
-limitations: Demonstrates that gradient sensing improves survival and excludes the 'mere movement' 
-  explanation (blind-motile control); it does NOT establish cognition or strong agency beyond 
-  adaptive behaviour, the sensing->tumble response is an engineered rule (not emergent), and the 
-  result rests on a single run (no seed replication).
+falsifiability: The survival advantage — and the agency / sense-making reading — would be unsupported if the motile-but-blind control matched chemotactic survival, i.e. if the gain were due to movement alone rather than gradient sensing.
+limitations: Demonstrates that gradient sensing improves survival and excludes the 'mere movement' explanation (blind-motile control); it does NOT establish cognition or strong agency beyond adaptive behaviour, the sensing->tumble response is an engineered rule (not emergent), and the result rests on a single run (no seed replication).
 robustness:
   n_replicates: 12
   seeds:
@@ -187,3 +175,23 @@ robustness:
       max: 1.4994639572593602
   control_blind_survival_mean: 0.3510416666666667
   seeds_with_advantage: 12
+discovery_implications:
+  resolved_uncertainties:
+  - Gradient sensing yields a robust survival advantage (2.33x +/- 0.26 over 12 seeds; 12/12 favour sensing).
+  - "The blind-motile control excludes 'mere movement': a motile agent that cannot sense survives far worse."
+  remaining_uncertainties:
+  - No positive/borderline calibration case (e.g. a weakly-sensing agent) to calibrate the survival metric across its range.
+  - "'Agency' and 'sense-making' remain an autopoietic INTERPRETATION of an engineered sensing->tumble rule, not demonstrated cognition."
+  alternate_hypotheses:
+  - hypothesis: The gain comes from spatial resource concentration, not directed sensing.
+    why_plausible: food is localised; even undirected agents starting near it could survive better.
+    discriminating_observables:
+    - survival under a uniform-resource control (no gradient) vs the localised gradient
+    - survival of a weakly-sensing agent (borderline calibration case)
+  followup_study_proposals:
+  - id: weak-sensor-calibration
+    title: Weakly-sensing agent (calibration case)
+    motivation: A positive/borderline control to calibrate the survival metric across fail->borderline->pass (review C4).
+  - id: parasitic-agent
+    title: Parasitic / dependent agent
+    motivation: An agent that exploits others' uptake blurs self-production vs dependence — stress-tests the framework (review C12).
