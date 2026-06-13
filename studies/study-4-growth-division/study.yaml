@@ -4,6 +4,7 @@ title: "Study 4 — growth & division: one individual becomes a heterogeneous po
 created: '2026-06-12'
 phase: Evaluate
 status: completed
+study_type: exploratory  # honest workflow type (critique #10): existence-level thresholds (does heterogeneity / division-mortality occur at all?) — searches for whether the behavior emerges rather than testing a sharp predeclared value
 design_status: approved
 implementation_status: complete
 simulation_status: ran

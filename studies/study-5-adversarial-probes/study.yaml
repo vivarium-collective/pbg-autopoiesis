@@ -5,6 +5,7 @@ created: '2026-06-13'
 phase: Evaluate
 status: completed
 kind: adversarial
+study_type: adversarial  # critique #10: explicit workflow type (kind: adversarial kept as alias)
 objective: |
   Turn the demonstration into a test: challenge the autopoiesis framework with
   systems that should NOT qualify, and check that the metric REJECTS them. Two

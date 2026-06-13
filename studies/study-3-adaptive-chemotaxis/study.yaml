@@ -4,6 +4,7 @@ title: "Study 3 — adaptive chemotaxis: move toward food to survive"
 created: '2026-06-12'
 phase: Evaluate
 status: completed
+study_type: confirmatory  # honest workflow type (critique #10): predeclared bands tested, not open search
 design_status: approved
 implementation_status: complete
 simulation_status: ran
@@ -117,6 +118,10 @@ findings:
     from_test: agency-advantage
     observed: 2.326
     units: chemotactic/blind survival
+  next_action_type: calibrate  # critique #7
+  next_action: >-
+    Add a weakly-sensing (borderline) agent so the survival metric is calibrated across
+    fail→borderline→pass, not just the pass/fail extremes (review C4).
 - id: F-02
   kind: biological
   status: confirms

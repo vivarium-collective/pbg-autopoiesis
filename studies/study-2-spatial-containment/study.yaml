@@ -4,6 +4,7 @@ title: "Study 2 — spatial containment: holding the individual together"
 created: '2026-06-12'
 phase: Evaluate
 status: completed
+study_type: confirmatory  # honest workflow type (critique #10): predeclared bands tested, not open search
 design_status: approved
 implementation_status: complete
 simulation_status: ran

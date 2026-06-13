@@ -4,6 +4,7 @@ title: "Study 1 — the minimal membrane/metabolism loop"
 created: '2026-06-12'
 phase: Evaluate
 status: completed
+study_type: confirmatory  # honest workflow type (critique #10): predeclared bands tested, not open search
 design_status: approved
 implementation_status: complete
 simulation_status: ran
@@ -37,6 +38,27 @@ baseline:
   composite: pbg_autopoiesis.composites.membrane-metabolism-loop
   params:
     supply_rate: 2.0
+
+# preregistered (critique #18) — the criteria/thresholds + predictions/controls this
+# confirmatory study predeclared BEFORE the run. registered_at predates the run's
+# started_at (2026-06-13T22:28:50Z), so registered_before_run computes True.
+preregistered:
+  registered_at: '2026-06-12T09:00:00+00:00'
+  criteria:
+  - operational-closure
+  - precariousness
+  - identity-persists-when-fed
+  thresholds:
+    operational-closure: "<= 0"
+    precariousness: "< 0.3"
+    identity-persists-when-fed: ">= 1.0"
+  predictions:
+  - 'Operational closure is CLOSED: gap (requires \ provides \ boundary) = ∅; only nutrient crosses the boundary.'
+  - The identity is precarious — starved/fed final-volume ratio < 0.3.
+  - Fed, the self-produced boundary is maintained or grows (fed_final_volume / initial_volume >= 1).
+  controls:
+  - self-producing-loop            # positive: should CLOSE and be precarious
+  - externally-maintained-membrane  # negative: should persist when starved (precariousness fails)
 
 behavior_tests:
 - name: operational-closure
@@ -113,6 +135,11 @@ findings:
     from_test: operational-closure
     observed: 0.0
     units: types in gap
+  next_action_type: calibrate  # critique #7
+  next_action: >-
+    Run an externally-maintained-membrane / random-cyclic negative control so closure has a
+    system that SHOULD fail — calibrating the metric and establishing discriminative power
+    rather than confirmatory fit (review C1/C2/C9).
 - id: F-02
   kind: biological
   status: confirms
