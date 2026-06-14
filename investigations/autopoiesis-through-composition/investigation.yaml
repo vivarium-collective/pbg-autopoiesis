@@ -50,6 +50,78 @@ studies:
 - study-4-growth-division
 
 - study-5-adversarial-probes
+
+# Investigation-level competing hypotheses (critique #6). statement + predictions are
+# AUTHORED here; support_log is COMPUTED by the coordinator's rollup pass (do not author
+# support_log by hand). Each prediction's `observable` is a real study measure field.
+# Studies link to these via discovery_implications.alternate_hypotheses[].hypothesis_id.
+hypotheses:
+- id: H-closure-without-viability
+  statement: |
+    Operational closure and viability (precariousness) are dissociable: a network can
+    satisfy the closure metric — or merely look organized — yet persist by external upkeep
+    rather than by precarious self-production. Closure alone does not entail viability, and
+    a structurally-incomplete network does not close. If true, the closure metric tracks
+    real self-production rather than bookkeeping.
+  predictions:
+  - observable: closure_gap_size
+    expected: "<= 0 (closed) for the genuine self-producing loop"
+  - observable: broken_network_gap
+    expected: "> 0 — removing the membrane producer opens the gap, so closure is not mere wiring"
+  - observable: external_maintenance_persistence
+    expected: ">= 3.0 — an externally-maintained mimic persists when starved (closed-looking but NOT precarious)"
+  required_controls:
+  - self-producing-loop
+  - missing-self-production-network
+  - externally-maintained-mimic
+  failure_modes:
+  - The externally-maintained mimic collapses like the starved loop (closure and precariousness 
+    inseparable).
+  - A random/cyclic network scores a closed gap (closure is mere bookkeeping, not organization).
+  status: supported   # study-5: broken network gap=['membrane_lipids']; mimic 8.9x persistent vs precarious loop
+
+- id: H-viability-without-self-production
+  statement: |
+    Persistence can be supplied from outside: a system whose boundary is maintained
+    externally survives starvation without self-producing it. Such a system is viable in
+    the weak sense (it persists) but is NOT autopoietic — the precariousness metric must
+    reject external upkeep as a route to self-bounded identity. Conversely, copying without
+    self-maintenance does not persist.
+  predictions:
+  - observable: external_maintenance_persistence
+    expected: ">= 3.0 — the externally-maintained system persists when starved"
+  - observable: precariousness_ratio
+    expected: "< 0.3 for the self-producing loop (it collapses when starved) — establishing the contrast"
+  - observable: final_population
+    expected: "collapses (~1) for a no-self-maintenance copying control, despite division firing"
+  required_controls:
+  - externally-maintained-mimic
+  - externally-maintained-membrane
+  - no-self-maintenance-reproduction
+  failure_modes:
+  - The externally-maintained system also collapses when starved (then external upkeep does not 
+    confer persistence).
+  - Copying without metabolism still reaches carrying (persistence would not require 
+    self-maintenance).
+  status: excluded   # persistence is achievable externally, but the metric rejects it as autopoiesis (study-4/5)
+
+- id: H-self-production-narrow-conditions
+  statement: |
+    Self-production (closure + precariousness, and the membrane's containment) holds only
+    at a narrow, hand-tuned parameter point and is an artifact of a single configuration —
+    it does not generalize across the supply/diffusion regime.
+  predictions:
+  - observable: precariousness_ratio
+    expected: "< 0.3 across the full supply_rate sweep (1.0-3.0), not just at baseline"
+  - observable: containment_ratio
+    expected: ">= 3.0 across the diffusion (D) sweep — membrane containment is regime-robust, not point-tuned"
+  required_controls:
+  - self-producing-loop
+  failure_modes:
+  - Closure/precariousness fail at some swept supply_rate, or containment fails at some D (then the 
+    result is a point artifact).
+  status: weakened   # study-1 sweep 5/5 rates + study-2 sweep 5/5 D + study-5 sweep weaken the narrowness claim
+
 acceptance_criteria:
 - study: study-1-membrane-metabolism-loop
   behavior: operational-closure
@@ -81,8 +153,41 @@ acceptance_criteria:
   behavior: rejects-broken-closure
 competing_frameworks:
 - name: active inference / free-energy
-  relation: predicts adaptive behaviour (chemotaxis) as surprise minimisation; distinguished here by self-production of the boundary, which active inference treats as given.
+  relation: predicts adaptive behaviour (chemotaxis) as surprise minimisation; distinguished here by
+    self-production of the boundary, which active inference treats as given.
 - name: organizational / constraint closure (Moreno-Mossio, Montevil)
-  relation: closely related — arguably the same claim; our operational-closure gap metric is one discrete operationalisation of closure-of-constraints.
+  relation: closely related — arguably the same claim; our operational-closure gap metric is one 
+    discrete operationalisation of closure-of-constraints.
 - name: viability theory (Aubin)
-  relation: frames persistence as staying inside a viability kernel; precariousness is the dynamical-systems echo of that condition.
+  relation: frames persistence as staying inside a viability kernel; precariousness is the 
+    dynamical-systems echo of that condition.
+scientific_argument:
+  main_claim: A minimal membrane/metabolism composite exhibits operational closure AND 
+    precariousness, and that self-producing identity extends compositionally — through spatial 
+    containment, adaptive chemotaxis, and growth/division — while surviving adversarial probes 
+    designed to break it.
+  evidence_for:
+  - 'Study 1: the loop closes (gap = ∅) and is precarious (collapses when starved); an externally-maintained-membrane
+    negative control confirms precariousness tracks self-production, not external upkeep.'
+  - 'Studies 2–4: containment, chemotaxis, and growth/division each compose onto the loop and pass their
+    literature-anchored bands; study-5 adversarial probes (external mimic, broken network) are correctly
+    REJECTED.'
+  - "Invariant regression: study-1's operational-closure + precariousness criteria remain PRESERVED when
+    the later components are added."
+  evidence_against:
+  - Generality is largely single-axis (parameter / seed sweeps); alternate implementations and 
+    independent authoring are untested, so most claims are mechanism-level, not framework-level.
+  - The membrane is modelled as a geometric boundary only (no transport / signalling / energetics), 
+    so operational closure is shown for a deliberately minimal ontology.
+biological_story: |
+  In a living cell, identity is not a given boundary but something the cell continuously MAKES:
+  metabolism produces the lipids that build the membrane, the membrane defines the volume that
+  concentrates the metabolism, and that volume feeds back into the reactions that remake the
+  membrane. Remove the production and the boundary decays — the identity is precarious, sustained
+  only by its own ongoing self-production. This investigation models that loop explicitly (study 1),
+  then asks whether the principle scales: whether the membrane can spatially contain its interior
+  against diffusion (study 2), whether sensing and moving toward food keep the precarious identity
+  alive (study 3), and whether it can grow, divide, and diversify into a population (study 4) — with
+  adversarial probes (study 5) checking the meter rejects systems that only LOOK self-producing.
+  The part the whole-cell-modeling lineage usually assumes — the membrane as a self-produced
+  boundary — is the part built here, from the molecular domain up.

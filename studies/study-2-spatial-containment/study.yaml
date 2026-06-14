@@ -4,6 +4,7 @@ title: "Study 2 — spatial containment: holding the individual together"
 created: '2026-06-12'
 phase: Evaluate
 status: completed
+study_type: confirmatory  # honest workflow type (critique #10): predeclared bands tested, not open search
 design_status: approved
 implementation_status: complete
 simulation_status: ran
@@ -52,6 +53,12 @@ behavior_tests:
   pass_if:
     op: ">="
     value: 3.0
+    provenance:
+      kind: calibration
+      note: >-
+        3x interior/exterior concentration is a clear-separation band: the self-produced
+        membrane case (~60x) passes with margin, calibrated so containment is unambiguous
+        rather than marginal. Not a literature value.
   requires_simulation: spatial-containment
 
 - name: membrane-counters-diffusion
@@ -65,6 +72,12 @@ behavior_tests:
   pass_if:
     op: ">="
     value: 2.0
+    provenance:
+      kind: theory
+      note: >-
+        The membrane must more than double containment vs metabolism-alone for the
+        self-produced boundary (not diffusion physics) to be the cause; 2x is the minimal
+        "membrane dominates" criterion implied by the discriminative claim.
   requires_simulation: spatial-containment
 
 - name: spatial-precariousness
@@ -81,6 +94,31 @@ behavior_tests:
     value: 0.3
   requires_simulation: spatial-containment
 
+# composition_commitment — the THEORETICAL commitment this study makes by adding a
+# component to its prerequisite (study-1). Authored; closure_gap_item is auto-fillable
+# from the meter (spine), and invariants_required feeds the C-INVAR regression check.
+composition_commitment:
+  component_added:
+  - spatial-lattice-diffusion          # interior content now diffuses in 1-D space
+  - membrane-gated-boundary-flux        # the self-produced membrane gates the boundary
+  deficit_addressed:
+    note: >-
+      Study 1 had no space — "inside" was a scalar volume that could not disperse.
+      This study adds spatial structure so the self-produced membrane has to hold the
+      individual together against diffusion (no closure-gap store is closed; the
+      deficit is spatial, not a missing self-production step).
+    closure_gap_item: []
+  new_behavior:
+  - containment
+  - membrane-counters-diffusion
+  - spatial-precariousness
+  invariants_required:
+  # The precarious self-producing identity from study-1 must still hold when space
+  # is added: re-run study-1's precariousness measure and band-check it is preserved.
+  - {study: study-1-membrane-metabolism-loop, test: precariousness}
+  alternatives_excluded:
+  - no-membrane
+
 # runs + findings + gate_evaluator are computed + written by pbg_autopoiesis.spine.sync_study2()
 runs:
 - name: containment-meter
@@ -96,7 +134,11 @@ runs:
     spatial-precariousness:
       result: PASS
       observed: 0.0434
-  started_at: '2026-06-13T20:10:49.192922+00:00'
+  started_at: '2026-06-14T01:27:53.079185+00:00'
+  generation_id: gen-20260614T012747Z-96f25c
+  seed: 0
+  emitter: sqlite
+  run_db: studies/study-2-spatial-containment/runs.db
   n_steps: 500
 findings:
 - id: F-01
@@ -110,6 +152,10 @@ findings:
     from_test: membrane-counters-diffusion
     observed: 13.8767
     units: containment fold vs no-membrane
+  claim_scope: mechanism
+  generality:                 # critique #22 — containment shown across the diffusion (D) sweep
+    axes_tested: [parameter_regime]
+    level: mechanism
 - id: F-02
   kind: biological
   status: confirms
@@ -179,3 +225,9 @@ alternative_hypotheses:
   discriminated_by: the no-membrane negative control disperses (containment ~1x) under the same 
     geometry, isolating the membrane's role.
   status: excluded
+invariant_check:
+- study: study-1-membrane-metabolism-loop
+  test: precariousness
+  prior: 0.0351
+  now: 0.035136
+  status: preserved

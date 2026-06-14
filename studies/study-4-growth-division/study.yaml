@@ -4,6 +4,7 @@ title: "Study 4 — growth & division: one individual becomes a heterogeneous po
 created: '2026-06-12'
 phase: Evaluate
 status: completed
+study_type: exploratory  # honest workflow type (critique #10): existence-level thresholds (does heterogeneity / division-mortality occur at all?) — searches for whether the behavior emerges rather than testing a sharp predeclared value
 design_status: approved
 implementation_status: complete
 simulation_status: ran
@@ -66,6 +67,12 @@ behavior_tests:
   pass_if:
     op: ">="
     value: 0.05
+    provenance:
+      kind: exploratory
+      note: >-
+        Existence-level band (this is an exploratory study): the threshold asks only
+        whether trait diversity emerges at all (spread > ~0), not a calibrated or
+        literature-anchored magnitude.
   requires_simulation: growing-population
 
 - name: division-precariousness
@@ -79,6 +86,12 @@ behavior_tests:
   pass_if:
     op: ">="
     value: 0.01
+    provenance:
+      kind: exploratory
+      note: >-
+        Existence-level band: any non-zero daughter mortality demonstrates reproduction
+        carries a viability cost. Exploratory threshold (does the cost occur at all?),
+        not a calibrated rate.
   requires_simulation: growing-population
 
 # runs + findings + gate_evaluator are computed + written by pbg_autopoiesis.spine.sync_study4()
@@ -96,7 +109,11 @@ runs:
     division-precariousness:
       result: PASS
       observed: 0.0956
-  started_at: '2026-06-13T20:10:50.737182+00:00'
+  started_at: '2026-06-14T01:27:57.951554+00:00'
+  generation_id: gen-20260614T012747Z-96f25c
+  seed: 0
+  emitter: sqlite
+  run_db: studies/study-4-growth-division/runs.db
   n_steps: 600
 findings:
 - id: F-01
@@ -110,6 +127,7 @@ findings:
     from_test: heterogeneity
     observed: 0.1142
     units: population trait std
+  claim_scope: behavioral
 - id: F-02
   kind: biological
   status: confirms
@@ -120,6 +138,7 @@ findings:
     from_test: division-precariousness
     observed: 0.0956
     units: fraction of daughters that dissolve
+  claim_scope: mechanism
 visualizations:
 - name: population
   chart: charts/s4_01_population.png
@@ -171,6 +190,7 @@ discovery_implications:
   alternate_hypotheses:
   - hypothesis: The population growth demonstrates engineered copying, not autopoietic 
       self-reproduction.
+    hypothesis_id: H-viability-without-self-production   # critique #6 — copying-without-self-maintenance link
     why_plausible: the split/inherit/partition rules are coded, not derived from the 
       membrane/metabolism loop.
     discriminating_observables:

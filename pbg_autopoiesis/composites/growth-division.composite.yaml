@@ -1,0 +1,43 @@
+name: growth-division
+description: >-
+  Study 4 — growth & division: one individual becomes a heterogeneous population.
+  The precarious individual grows as its (abstracted) autopoietic loop runs and,
+  past a size threshold, DIVIDES into two daughters. The membrane is partitioned
+  with noise so daughters differ; a heritable trait is inherited with mutation so
+  lineages DIVERSIFY over generations. Division is precarious — a daughter that
+  inherits too little membrane to maintain itself dissolves. Starve it
+  (``supply=0``) and the lineage collapses: the no-self-maintenance control.
+tags: [autopoiesis, growth, division, reproduction, heredity, lineage, precariousness]
+
+requires:
+  processes: [GrowthDivision]
+
+# the variable-length population is a whole-value (replaced) store
+schema:
+  population: tree
+
+parameters:
+  supply:
+    type: float
+    default: 0.55
+    description: "Per-step membrane growth (self-maintenance). 0 collapses the lineage (negative control)."
+  seed:
+    type: integer
+    default: 0
+    description: "RNG seed for the division/partition/mutation/cull draws (deterministic per seed)."
+
+state:
+  # --- the variable-length population lives in one tree store (list of cell dicts) ---
+  population:
+  - {M: 8.0, theta: 0.5}   # one founder
+  deaths: 0.0              # running count: daughters too small to maintain themselves
+  divisions: 0.0          # running count: division events
+
+  # --- the grow-and-divide step ---
+  growth:
+    _type: process
+    address: "local:GrowthDivision"
+    config: {supply: "${supply}", seed: "${seed}"}
+    interval: 1.0
+    inputs: {population: [population], deaths: [deaths], divisions: [divisions]}
+    outputs: {population: [population], deaths: [deaths], divisions: [divisions]}

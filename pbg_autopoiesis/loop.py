@@ -28,19 +28,13 @@ def _proc_node(address, config, wires_in, wires_out, interval=1.0):
     }
 
 
-def build_loop(supply_rate=2.0, *, seed_membrane=40.0, seed_precursor=10.0,
-               external_membrane=False):
-    """A Composite of the minimal autopoietic loop. supply_rate=0 starves it.
+def loop_state(supply_rate=2.0, *, seed_membrane=40.0, seed_precursor=10.0):
+    """The raw network document (the state dict) for the minimal autopoietic loop.
 
-    ``external_membrane=True`` adds a pbg-superpowers Intervention that CLAMPS
-    membrane_lipids to its seed value every step — an externally-maintained
-    boundary. This is the negative control the reviewers asked for: a system that
-    is sustained from OUTSIDE rather than self-producing. Run it starved
-    (supply_rate=0) and the identity should NOT collapse (precariousness fails),
-    showing the metric discriminates self-production from external maintenance.
-    """
-    core = _core()
-    state = {
+    Exposed so callers (e.g. the ablation enumerator, which walks the document for
+    ``_type == "process"`` entries) can read the wiring without instantiating a
+    Composite."""
+    return {
         # --- shared molecular stores (toy counts) ---
         "nutrient": 0.0,
         "precursor": float(seed_precursor),
@@ -67,6 +61,27 @@ def build_loop(supply_rate=2.0, *, seed_membrane=40.0, seed_precursor=10.0,
             {"membrane_lipids": ["membrane_lipids"], "volume": ["volume"]},
             {"volume": ["volume"]}),
     }
+
+
+def build_loop(supply_rate=2.0, *, seed_membrane=40.0, seed_precursor=10.0,
+               external_membrane=False, injected_node=None):
+    """A Composite of the minimal autopoietic loop. supply_rate=0 starves it.
+
+    ``external_membrane=True`` adds a pbg-superpowers Intervention that CLAMPS
+    membrane_lipids to its seed value every step — an externally-maintained
+    boundary. This is the negative control the reviewers asked for: a system that
+    is sustained from OUTSIDE rather than self-producing. Run it starved
+    (supply_rate=0) and the identity should NOT collapse (precariousness fails),
+    showing the metric discriminates self-production from external maintenance.
+
+    ``injected_node`` accepts an arbitrary intervention-node dict (e.g. one emitted
+    by ``pbg_superpowers.ablation.generate_ablations`` / ``intervention_node``) and
+    wires it into the loop — this is the rebuild hook the ablation suite's
+    ``build_fn`` uses to inject a knockout/scale/decouple node into the network.
+    """
+    core = _core()
+    state = loop_state(supply_rate, seed_membrane=seed_membrane,
+                       seed_precursor=seed_precursor)
     if external_membrane:
         # Negative control: an externally-maintained boundary (clamped, not
         # self-produced) — the membrane is held at its seed value from outside.
@@ -74,15 +89,37 @@ def build_loop(supply_rate=2.0, *, seed_membrane=40.0, seed_precursor=10.0,
         register_intervention(core)
         state["external_membrane"] = intervention_node(
             ["membrane_lipids"], mode="set", value=float(seed_membrane))
+    if injected_node is not None:
+        # Ablation hook: inject an externally-supplied intervention node (knockout /
+        # scale / decouple / invert) targeting one of the loop's provided stores.
+        from pbg_superpowers.intervention import register_intervention
+        register_intervention(core)
+        state["ablation_node"] = injected_node
     return Composite({"state": state}, core=core)
 
 
-def run_trajectory(composite, steps=160):
-    """Run one tick at a time, recording the volume (the size of the identity)."""
+def run_trajectory(composite, steps=160, *, return_fluxes=False):
+    """Run one tick at a time, recording the volume (the size of the identity).
+
+    When ``return_fluxes=True`` returns ``(vols, fluxes)`` where ``fluxes`` is
+    ``{store: accumulated abs(delta)}`` over every scalar store across the run —
+    the dynamical evidence ``meter.semantic_closure`` needs to confirm each wired
+    self-produced type is actually produced (non-zero net flux)."""
+    def _scalars(state):
+        return {k: v for k, v in state.items() if isinstance(v, (int, float))}
+
     vols = [composite.state["volume"]]
+    prev = _scalars(composite.state)
+    fluxes = {k: 0.0 for k in prev}
     for _ in range(steps):
         composite.run(1.0)
+        cur = _scalars(composite.state)
+        for k, v in cur.items():
+            fluxes[k] = fluxes.get(k, 0.0) + abs(v - prev.get(k, v))
+        prev = cur
         vols.append(composite.state["volume"])
+    if return_fluxes:
+        return vols, fluxes
     return vols
 
 

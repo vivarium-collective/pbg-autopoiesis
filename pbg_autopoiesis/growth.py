@@ -14,53 +14,13 @@ from __future__ import annotations
 
 import numpy as np
 
-M_DIV = 20.0      # membrane size that triggers division
-M_MIN = 5.0       # below this a (daughter) cell cannot maintain itself → dissolves
-FOUNDER_THETA = 0.5
-
-
-def simulate(steps=600, *, supply=0.55, decay=0.018, split_sigma=0.15, mut=0.03,
-             carrying=300, seed=0):
-    """Grow a population from one founder cell. Returns the history + final population."""
-    rng = np.random.default_rng(seed)
-    pop = [{"M": 8.0, "theta": FOUNDER_THETA}]   # one founder
-    pop_size = [1]
-    hetero = [0.0]
-    deaths = 0
-    divisions = 0
-    snapshots = []
-
-    for t in range(steps):
-        nxt = []
-        for c in pop:
-            c["M"] += supply - decay * c["M"]            # grow (autopoietic loop, abstracted)
-            if c["M"] >= M_DIV:                           # divide
-                divisions += 1
-                fM = float(np.clip(rng.normal(0.5, split_sigma), 0.12, 0.88))
-                for frac in (fM, 1.0 - fM):
-                    dM = c["M"] * frac
-                    if dM >= M_MIN:
-                        nxt.append({"M": dM, "theta": c["theta"] + float(rng.normal(0, mut))})
-                    else:
-                        deaths += 1                       # daughter too small → dissolves
-            else:
-                nxt.append(c)
-        pop = nxt
-        if len(pop) > carrying:                           # cap (finite environment)
-            keep = rng.choice(len(pop), carrying, replace=False)
-            pop = [pop[i] for i in keep]
-
-        thetas = np.array([c["theta"] for c in pop])
-        pop_size.append(len(pop))
-        hetero.append(float(thetas.std()) if len(pop) > 1 else 0.0)
-        if t in (0, steps // 3, 2 * steps // 3, steps - 1):
-            snapshots.append((t, thetas.copy()))
-
-    return {
-        "pop_size": pop_size, "hetero": hetero, "deaths": deaths, "divisions": divisions,
-        "final_pop": len(pop), "final_theta": np.array([c["theta"] for c in pop]),
-        "snapshots": snapshots,
-    }
+# The per-step grow-and-divide math now lives in the REAL process-bigraph composite
+# (``processes_growth.GrowthDivision``); ``simulate`` drives that composite and
+# returns the same lineage history + final population. The constants are re-exported
+# here so ``viz`` and ``growth_division_metrics`` keep working unchanged.
+from .processes_growth import (  # noqa: F401
+    M_DIV, M_MIN, FOUNDER_THETA, simulate,
+)
 
 
 def growth_division_metrics(n_seeds=12):
