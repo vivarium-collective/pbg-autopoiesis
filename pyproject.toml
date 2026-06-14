@@ -7,10 +7,20 @@ requires-python = ">=3.10"
 dependencies = [
     "process-bigraph",
     "bigraph-schema",
+    "numpy",
+    # The composites/processes build via core.build_core(), which imports the
+    # reusable Intervention process; the dashboard publish + report jobs need it.
+    "pbg-superpowers @ git+https://github.com/vivarium-collective/pbg-superpowers.git@main",
 ]
 
 [project.optional-dependencies]
 test = ["pytest"]
+# `dev` carries the dashboard so `uv sync --extra dev` (the publish CI step)
+# provides the static-bundle builder + headless report server.
+dev = [
+    "vivarium-dashboard @ git+https://github.com/vivarium-collective/vivarium-dashboard.git@main",
+    "matplotlib",
+]
 
 [build-system]
 requires = ["hatchling"]
