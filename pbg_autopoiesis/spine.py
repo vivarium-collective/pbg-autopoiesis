@@ -489,12 +489,17 @@ def _spatial_findings(context, outcomes):
 
 
 def _apply_meter(study_path, measures, context, findings_fn, run_name, composite,
-                 generation_id=None, seed=0):
+                 generation_id=None, seed=0, emitter=None, run_db=None):
     """Generic: apply the study's authored bands to the computed measures, write the
     run outcomes + gate_evaluator + findings. The schema framework driving the spine.
 
     ``generation_id`` (from :func:`start_spine_generation`) and ``seed`` stamp the
-    run record so each run is tied to one coordinated result-generation."""
+    run record so each run is tied to one coordinated result-generation.
+
+    ``emitter`` / ``run_db`` record HOW the run persisted its trajectory — when the
+    baseline composite was stepped through the engine with a SQLite emitter, the run
+    record carries ``emitter: "sqlite"`` and the run-db path so the dashboard /
+    rigor's run-persistence signal credits a real persisted trajectory."""
     study = _yaml.load(study_path.read_text(encoding="utf-8"))
     outcomes = evaluate(study, measures)
     verdict = gate_evaluator(outcomes, study.get("gate_status"))
@@ -503,6 +508,15 @@ def _apply_meter(study_path, measures, context, findings_fn, run_name, composite
                "outcomes": {t: dict(o) for t, o in outcomes.items()},
                "started_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
                "generation_id": generation_id, "seed": seed}
+    if emitter is not None:
+        run_rec["emitter"] = emitter
+    if run_db is not None:
+        # workspace-relative so the run record is portable (not machine-specific)
+        try:
+            run_db = Path(run_db).relative_to(WS)
+        except Exception:
+            pass
+        run_rec["run_db"] = str(run_db)
     # Readily-available run metadata so the Runs tab columns fill in.
     if isinstance(context, dict):
         if context.get("n_steps") is not None:
@@ -563,6 +577,26 @@ def _apply_meter(study_path, measures, context, findings_fn, run_name, composite
     return verdict
 
 
+def _persist_baseline(sim_fn, run_id, db_path, **kw):
+    """Step the baseline composite once through the engine WITH a SQLite emitter so
+    the run persists a real trajectory in ``<study>/runs.db`` (the canonical
+    ``vivarium_dashboard.lib.composite_runs.inject_sqlite_emitter`` path, with a
+    manual SQLiteEmitter fallback inside the processes module). Returns
+    ``("sqlite", db_path)`` on success or ``(None, None)`` if persistence raised —
+    the spine still records the computed measures, just without an emitter stamp.
+
+    This is a SEPARATE engine run from the measure computation (which sweeps
+    variants/seeds); it reproduces the positive baseline variant and exists so the
+    run record carries a persisted trajectory the dashboard can read back."""
+    try:
+        db_path = Path(db_path)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        sim_fn(run_id=run_id, db_file=db_path, **kw)
+        return ("sqlite", db_path) if db_path.exists() else (None, None)
+    except Exception:  # pragma: no cover - persistence is best-effort
+        return (None, None)
+
+
 def _report(slug, verdict, outcomes):
     print(f"{slug} → verdict: {verdict['result'].upper()}")
     for t, o in outcomes.items():
@@ -592,10 +626,13 @@ def sync_study2(generation_id=None):
     if generation_id is None:
         generation_id = start_spine_generation()
     measures, context = spatial.containment_metrics()
+    emitter, run_db = _persist_baseline(
+        spatial.simulate, "containment-meter", STUDY2_DIR / "runs.db",
+        fed=True, membrane=True)
     rendered_at = _time.time()
     v = _apply_meter(STUDY2_DIR / "study.yaml", measures, context, _spatial_findings,
                      "containment-meter", "spatial-containment",
-                     generation_id=generation_id)
+                     generation_id=generation_id, emitter=emitter, run_db=run_db)
     viz.spatial_main(STUDY2_DIR / "charts")
     _stamp_charts(STUDY2_DIR / "charts", generation_id=generation_id,
                   source_run_id="containment-meter", rendered_at=rendered_at)
@@ -640,10 +677,13 @@ def sync_study3(generation_id=None):
     if generation_id is None:
         generation_id = start_spine_generation()
     measures, context = chemotaxis.chemotaxis_metrics()
+    emitter, run_db = _persist_baseline(
+        chemotaxis.simulate, "chemotaxis-meter", STUDY3_DIR / "runs.db",
+        chemotactic=True, seed=0)
     rendered_at = _time.time()
     v = _apply_meter(STUDY3_DIR / "study.yaml", measures, context, _chemotaxis_findings,
                      "chemotaxis-meter", "chemotactic-agent",
-                     generation_id=generation_id)
+                     generation_id=generation_id, emitter=emitter, run_db=run_db)
     viz.chemotaxis_main(STUDY3_DIR / "charts")
     _stamp_charts(STUDY3_DIR / "charts", generation_id=generation_id,
                   source_run_id="chemotaxis-meter", rendered_at=rendered_at)
@@ -677,10 +717,13 @@ def sync_study4(generation_id=None):
     if generation_id is None:
         generation_id = start_spine_generation()
     measures, context = growth.growth_division_metrics()
+    emitter, run_db = _persist_baseline(
+        growth.simulate, "growth-division-meter", STUDY4_DIR / "runs.db",
+        supply=0.55, seed=0)
     rendered_at = _time.time()
     v = _apply_meter(STUDY4_DIR / "study.yaml", measures, context, _growth_findings,
                      "growth-division-meter", "growing-population",
-                     generation_id=generation_id)
+                     generation_id=generation_id, emitter=emitter, run_db=run_db)
     viz.growth_main(STUDY4_DIR / "charts")
     _stamp_charts(STUDY4_DIR / "charts", generation_id=generation_id,
                   source_run_id="growth-division-meter", rendered_at=rendered_at)
