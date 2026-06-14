@@ -139,9 +139,11 @@ runs:
     rejects-broken-closure:
       result: PASS
       observed: 1.0
-  started_at: '2026-06-13T23:31:36.214374+00:00'
-  generation_id: gen-20260613T233127Z-c50ec7
+  started_at: '2026-06-14T01:28:00.444052+00:00'
+  generation_id: gen-20260614T012747Z-96f25c
   seed: 0
+  emitter: sqlite
+  run_db: studies/study-5-adversarial-probes/runs.db
   n_steps: 160
 findings:
 - id: F-01

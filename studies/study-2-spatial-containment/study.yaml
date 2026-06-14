@@ -134,9 +134,11 @@ runs:
     spatial-precariousness:
       result: PASS
       observed: 0.0434
-  started_at: '2026-06-13T23:31:32.303560+00:00'
-  generation_id: gen-20260613T233127Z-c50ec7
+  started_at: '2026-06-14T01:27:53.079185+00:00'
+  generation_id: gen-20260614T012747Z-96f25c
   seed: 0
+  emitter: sqlite
+  run_db: studies/study-2-spatial-containment/runs.db
   n_steps: 500
 findings:
 - id: F-01

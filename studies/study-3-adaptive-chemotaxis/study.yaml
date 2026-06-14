@@ -113,9 +113,11 @@ runs:
     sense-making:
       result: PASS
       observed: 1.3939
-  started_at: '2026-06-13T23:31:33.271430+00:00'
-  generation_id: gen-20260613T233127Z-c50ec7
+  started_at: '2026-06-14T01:27:55.436014+00:00'
+  generation_id: gen-20260614T012747Z-96f25c
   seed: 0
+  emitter: sqlite
+  run_db: studies/study-3-adaptive-chemotaxis/runs.db
   n_steps: 900
 findings:
 - id: F-01

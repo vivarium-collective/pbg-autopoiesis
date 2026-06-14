@@ -109,9 +109,11 @@ runs:
     division-precariousness:
       result: PASS
       observed: 0.0956
-  started_at: '2026-06-13T23:31:34.270343+00:00'
-  generation_id: gen-20260613T233127Z-c50ec7
+  started_at: '2026-06-14T01:27:57.951554+00:00'
+  generation_id: gen-20260614T012747Z-96f25c
   seed: 0
+  emitter: sqlite
+  run_db: studies/study-4-growth-division/runs.db
   n_steps: 600
 findings:
 - id: F-01

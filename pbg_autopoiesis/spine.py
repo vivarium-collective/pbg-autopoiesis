@@ -591,8 +591,56 @@ def _persist_baseline(sim_fn, run_id, db_path, **kw):
     try:
         db_path = Path(db_path)
         db_path.parent.mkdir(parents=True, exist_ok=True)
+        # Idempotent re-run: clear any prior trajectory for this run so the
+        # SQLiteEmitter's UNIQUE(simulation_id, step) isn't violated when the
+        # spine is re-run (each sync writes one fresh baseline trajectory).
+        for suffix in ("", "-wal", "-shm"):
+            p = Path(str(db_path) + suffix)
+            if p.exists():
+                p.unlink()
         sim_fn(run_id=run_id, db_file=db_path, **kw)
         return ("sqlite", db_path) if db_path.exists() else (None, None)
+    except Exception:  # pragma: no cover - persistence is best-effort
+        return (None, None)
+
+
+def _persist_loop(run_id, db_path, *, supply_rate=2.0, steps=160):
+    """Persist a baseline loop trajectory to ``<study>/runs.db`` via a SQLite
+    emitter (studies 1 & 5 share the membrane-metabolism-loop Composite).
+
+    Mirrors ``_persist_baseline`` but for the loop, whose state comes from
+    ``loop_state`` rather than a numpy-ported process module. Idempotent (clears
+    a prior trajectory first). Returns ``("sqlite", db_path)`` or ``(None, None)``.
+    """
+    try:
+        db = Path(db_path)
+        db.parent.mkdir(parents=True, exist_ok=True)
+        for suffix in ("", "-wal", "-shm"):
+            p = Path(str(db) + suffix)
+            if p.exists():
+                p.unlink()
+        state = loop_state(supply_rate=supply_rate)
+        emit = {k: "float" for k in
+                ("nutrient", "precursor", "lipid", "membrane_lipids", "volume", "global_time")}
+        try:
+            from vivarium_dashboard.lib.composite_runs import inject_sqlite_emitter
+            state = inject_sqlite_emitter(state, run_id=run_id, db_file=db)
+            node = state["sqlite_emitter"]
+            node["config"]["emit"] = dict(emit)
+            node["inputs"] = {k: [k] for k in emit}
+        except Exception:  # pragma: no cover - dashboard not importable
+            state = dict(state)
+            state["sqlite_emitter"] = {
+                "_type": "step", "address": "local:SQLiteEmitter",
+                "config": {"emit": dict(emit), "file_path": str(db.parent),
+                           "db_file": db.name, "simulation_id": run_id},
+                "inputs": {k: [k] for k in emit}}
+        from process_bigraph import Composite
+        from .core import build_core
+        comp = Composite({"state": state}, core=build_core())
+        for _ in range(steps):
+            comp.run(1.0)
+        return ("sqlite", db) if db.exists() else (None, None)
     except Exception:  # pragma: no cover - persistence is best-effort
         return (None, None)
 
@@ -612,10 +660,12 @@ def sync(generation_id=None):
     ablations = _maybe_ablations_for_loop(STUDY_YAML)
     if ablations is not None:
         context["ablations"] = ablations
+    emitter, run_db = _persist_loop("autopoiesis-meter", STUDY_DIR / "runs.db",
+                                    supply_rate=2.0, steps=160)
     rendered_at = _time.time()
     v = _apply_meter(STUDY_YAML, measures, context, _findings,
                      "autopoiesis-meter", "membrane-metabolism-loop",
-                     generation_id=generation_id)
+                     generation_id=generation_id, emitter=emitter, run_db=run_db)
     _copy_figures(generation_id=generation_id, source_run_id="autopoiesis-meter",
                   rendered_at=rendered_at)
     return v
@@ -834,9 +884,11 @@ def sync_study5(generation_id=None):
     ablations = _maybe_ablations_for_loop(STUDY5_DIR / "study.yaml")
     if ablations is not None:
         context["ablations"] = ablations
+    emitter, run_db = _persist_loop("adversarial-meter", STUDY5_DIR / "runs.db",
+                                    supply_rate=2.0, steps=160)
     return _apply_meter(STUDY5_DIR / "study.yaml", measures, context, _adversarial_findings,
                         "adversarial-meter", "adversarial-probes",
-                        generation_id=generation_id)
+                        generation_id=generation_id, emitter=emitter, run_db=run_db)
 
 
 def sync_all():
